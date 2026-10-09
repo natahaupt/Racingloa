@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Racing Loa - Admin</title>
+    
+    <!-- PWA Config -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0ea5e9">
+    <link rel="apple-touch-icon" href="logoracingloa.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Librerías para reportes (JPG y PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- FIREBASE SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBdsAQZbCzuM9xEVLF8zr9IlgH2vj0eIHc",
+            authDomain: "racing-loa.firebaseapp.com",
+            projectId: "racing-loa",
+            storageBucket: "racing-loa.firebasestorage.app",
+            messagingSenderId: "657974340000",
+            appId: "1:657974340000:web:c5c46d64ef6dcc7f9d9cc5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        window.db = db;
+        window.setDoc = setDoc;
+        window.doc = doc;
+        window.deleteDoc = deleteDoc;
+
+        // --- SISTEMA DE GUARDADO LOCAL (Listas Oficiales) ---
+        const jugadoresDefecto = [
+            { id_db: 'j1', nombre: 'Marcelo Alberto Medina', apodo: 'Chelo', posicion: 'Arquero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j2', nombre: 'Jugador no identificado', apodo: 'Chila Jose', posicion: 'Zaguero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j3', nombre: 'Daniel Maseli', apodo: 'Daniel', posicion: 'Zaguero', tarifa: 100, observacion: '', foto: null },
+            { id_db: 'j4', nombre: 'Harold Blanco Guayhua', apodo: 'Harold', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j5', nombre: 'Jose Ronald Mamani Nina', apodo: 'Ronald', posicion: 'Medio Campo', tarifa: 100, observacion: '', foto: null },
+            { id_db: 'j6', nombre: 'Nelson Jesus Mamani Alvarez', apodo: 'Nelson', posicion: 'Medio Campo', tarifa: 250, observacion: '', foto: null },
+            { id_db: 'j7', nombre: 'Froilan Felix Espejo Canaza', apodo: 'Froy', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j8', nombre: 'Frank Kevin Perez Apaza', apodo: 'Chiqui', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j9', nombre: 'Cristhian Daniel Maydana Tinta', apodo: 'Cristian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j10', nombre: 'Adrian', apodo: 'Adrian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j11', nombre: 'Roberto Carlos Macuchapi Laura', apodo: 'Sub 20 1', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j12', nombre: 'Luis Fernando Villalobos Mamani', apodo: 'Sub 20 2', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j13', nombre: 'Milton Limachi Surco', apodo: 'Milton', posicion: 'Comodín', tarifa: 0, observacion: '', foto: null }
+        ];
+
+        const dirigentesDefecto = [
+            { id_db: 'd1', nombre: 'Bernardo Maidana', foto: null }, { id_db: 'd2', nombre: 'Felipe Choque', foto: null },
+            { id_db: 'd3', nombre: 'Félix Limachi', foto: null }, { id_db: 'd4', nombre: 'Roberto Ceballos', foto: null },
+            { id_db: 'd5', nombre: 'René Ceballos', foto: null }, { id_db: 'd6', nombre: 'Ernesto Ceballos', foto: null },
+            { id_db: 'd7', nombre: 'Víctor Maidana', foto: null }
+        ];
+
+        const carpetasDefecto = [
+            { id_db: 'c1', nombre: 'Cuotas Primer Partido', aportes: [] }
+        ];
+
+        let lj = localStorage.getItem('rl_jugadores'); window.jugadores = lj ? JSON.parse(lj) : jugadoresDefecto;
+        let ld = localStorage.getItem('rl_dirigentes'); window.dirigentes = ld ? JSON.parse(ld) : dirigentesDefecto;
+        let lc = localStorage.getItem('rl_carpetas'); window.carpetasCaja = lc ? JSON.parse(lc) : carpetasDefecto;
+        let lp = localStorage.getItem('rl_partidos'); window.partidos = lp ? JSON.parse(lp) : [];
+
+        if(window.dirigentes.length === 0) window.dirigentes = [...dirigentesDefecto];
+        if(window.jugadores.length === 0) window.jugadores = [...jugadoresDefecto];
+
+        window.carpetaActivaId = null;
+
+        window.guardarDatosLocales = function() {
+            localStorage.setItem('rl_jugadores', JSON.stringify(window.jugadores));
+            localStorage.setItem('rl_dirigentes', JSON.stringify(window.dirigentes));
+            localStorage.setItem('rl_carpetas', JSON.stringify(window.carpetasCaja));
+            localStorage.setItem('rl_partidos', JSON.stringify(window.partidos));
+        };
+
+        window.sincronizarNube = function() {
+            if(!document.body.classList.contains('admin-mode')) return;
+            window.dirigentes.forEach(d => setDoc(doc(db, "dirigentes", d.id_db), d, {merge: true}).catch(e=>console.log(e)));
+            window.jugadores.forEach(j => setDoc(doc(db, "jugadores", j.id_db), j, {merge: true}).catch(e=>console.log(e)));
+            window.carpetasCaja.forEach(c => setDoc(doc(db, "carpetasCaja", c.id_db), c, {merge: true}).catch(e=>console.log(e)));
+            window.partidos.forEach(p => setDoc(doc(db, "partidos", p.id_db), p, {merge: true}).catch(e=>console.log(e)));
+        }
+
+        // --- FUNCIONES DE GUARDADO ---
+        window.guardarYSubirJugador = async (datos, id_db = null) => {
+            const id = id_db || 'j_' + Date.now();
+            if(id_db) {
+                const index = window.jugadores.findIndex(x => x.id_db === id);
+                if(index > -1) window.jugadores[index] = { ...window.jugadores[index], ...datos };
+            } else {
+                window.jugadores.push({ id_db: id, ...datos });
+            }
+            window.guardarDatosLocales(); 
+            if(window.renderizarJugadores) window.renderizarJugadores();
+            try { await setDoc(doc(db, "jugadores", id), datos, { merge: true }); } catch(e) {}
+        };
+
+        window.guardarYSubirDirigente = async (datos, id_db = null) => {
+            const id = id_db || 'd_' + Date.now();
+            if(id_db) {
+                const index = window.dirigentes.findIndex(x => x.id_db === id);
+                if(index > -1) window.dirigentes[index] = { ...window.dirigentes[index], ...datos };
+            } else {
+                window.dirigentes.push({ id_db: id, ...datos });
+            }
+            window.guardarDatosLocales(); 
+            if(window.renderizarDirigentes) window.renderizarDirigentes();
+            try { await setDoc(doc(db, "dirigentes", id), datos, { merge: true }); } catch(e) {}
+        };
+
+        window.guardarYSubirCarpeta = async (datos, id_db = null) => {
+            const id = id_db || 'c_' + Date.now();
+            if(id_db) {
+                const index = window.carpetasCaja.findIndex(x => x.id_db === id);
+                if(index > -1) window.carpetasCaja[index] = { ...window.carpetasCaja[index], ...datos };
+            } else {
+                window.carpetasCaja.push({ id_db: id, ...datos });
+            }
+            window.guardarDatosLocales(); 
+            if(window.renderizarCarpetasCaja) window.renderizarCarpetasCaja();
+            if(window.carpetaActivaId === id && window.actualizarDetalleCarpeta) window.actualizarDetalleCarpeta();
+            try { await setDoc(doc(db, "carpetasCaja", id), datos, { merge: true }); } catch(e) {}
+        };
+
+        window.guardarYSubirPartido = async (datos, id_db = null) => {
+            const id = id_db || 'p_' + Date.now();
+            if(id_db) {
+                const index = window.partidos.findIndex(x => x.id_db === id);
+                if(index > -1) window.partidos[index] = { ...window.partidos[index], ...datos };
+            } else {
+                window.partidos.unshift({ id_db: id, ...datos });
+            }
+            window.guardarDatosLocales(); 
+            if(window.renderizarPartidos) window.renderizarPartidos();
+            try { await setDoc(doc(db, "partidos", id), datos, { merge: true }); } catch(e) {}
+        };
+
+        window.borrarRegistroLocal = async (coleccion, id_db) => {
+            if(coleccion === 'jugadores') window.jugadores = window.jugadores.filter(x => x.id_db !== id_db);
+            if(coleccion === 'dirigentes') window.dirigentes = window.dirigentes.filter(x => x.id_db !== id_db);
+            if(coleccion === 'carpetasCaja') window.carpetasCaja = window.carpetasCaja.filter(x => x.id_db !== id_db);
+            if(coleccion === 'partidos') window.partidos = window.partidos.filter(x => x.id_db !== id_db);
+            
+            window.guardarDatosLocales(); 
+            if(coleccion === 'jugadores') window.renderizarJugadores();
+            if(coleccion === 'dirigentes') window.renderizarDirigentes();
+            if(coleccion === 'carpetasCaja') window.renderizarCarpetasCaja();
+            if(coleccion === 'partidos') window.renderizarPartidos();
+            
+            try { await window.deleteDoc(doc(db, coleccion, id_db)); } catch(e) {}
+        };
+
+        // --- LISTENERS EN TIEMPO REAL (Actualizados para no borrar datos si Firebase falla) ---
+        onSnapshot(collection(db, "dirigentes"), (snapshot) => {
+            window.dirigentes = [];
+            snapshot.forEach((doc) => { window.dirigentes.push({ id_db: doc.id, ...doc.data() }); });
+            window.guardarDatosLocales();
+            if(window.renderizarDirigentes) window.renderizarDirigentes();
+        }, () => {});
+
+        onSnapshot(collection(db, "jugadores"), (snapshot) => {
+            window.jugadores = [];
+            snapshot.forEach((doc) => { window.jugadores.push({ id_db: doc.id, ...doc.data() }); });
+            window.guardarDatosLocales();
+            if(window.renderizarJugadores) window.renderizarJugadores();
+        }, () => {});
+
+        onSnapshot(collection(db, "carpetasCaja"), (snapshot) => {
+            window.carpetasCaja = [];
+            snapshot.forEach((doc) => { window.carpetasCaja.push({ id_db: doc.id, ...doc.data() }); });
+            window.guardarDatosLocales();
+            if(window.renderizarCarpetasCaja) window.renderizarCarpetasCaja();
+            if(window.carpetaActivaId && window.actualizarDetalleCarpeta) window.actualizarDetalleCarpeta();
+        }, () => {});
+
+        onSnapshot(collection(db, "partidos"), (snapshot) => {
+            window.partidos = [];
+            snapshot.forEach((doc) => { window.partidos.push({ id_db: doc.id, ...doc.data() }); });
+            window.partidos.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+            window.guardarDatosLocales();
+            if(window.renderizarPartidos) window.renderizarPartidos();
+        }, () => {});
+    </script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; padding-bottom: 70px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .app-header { background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .vista-interna { display: none; }
+        .vista-interna.active { display: block; }
+        
+        /* POR DEFECTO OCULTO TODO LO DE EDICIÓN PARA QUE LOS LECTORES NO PUEDan EDITAR NADA */
+        body:not(.admin-mode) .admin-only { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Barra Superior -->
+    <header class="app-header text-white p-4 shadow-md fixed top-0 w-full z-20 flex justify-between items-center border-b-[3px] border-white">
+        <div class="flex items-center">
+            <div class="w-12 h-12 flex items-center justify-center mr-3">
+                <img src="logoracingloa.png" alt="Logo Racing Loa" class="w-full h-full object-contain" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fa-solid fa-shield-halved text-sky-500 text-3xl\'></i>';">
+            </div>
+            <h1 class="text-xl font-bold tracking-wider text-white drop-shadow-md">RACING LOA</h1>
+        </div>
+        <!-- Botón de acceso exclusivo para administrador -->
+        <button onclick="loginAdmin()" id="admin-btn"><i class="fa-solid fa-lock text-xl hover:text-gray-200 transition"></i></button>
+    </header>
+
+    <!-- Banner Modo Admin -->
+    <div class="admin-only fixed top-[75px] w-full bg-green-500 text-white text-center text-[10px] py-1 font-bold z-10 shadow-sm uppercase tracking-widest flex justify-between px-4 items-center">
+        <span>Modo Administrador Activo</span>
+        <button onclick="loginAdmin()" class="bg-red-600 text-white px-2 py-0.5 rounded shadow hover:bg-red-700">Cerrar Sesión Admin</button>
+    </div>
+
+    <!-- Main Content -->
+    <main class="mt-[110px] p-4 relative z-10">
+
+        <!-- ============================== -->
+        <!-- PESTAÑA: CAJA GENERAL          -->
+        <!-- ============================== -->
+        <section id="tab-caja" class="tab-content active">
+            <div id="vista-carpetas" class="vista-interna active">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">Caja General</h2>
+                    <button onclick="abrirModalCarpeta()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-semibold flex items-center">
+                        <i class="fa-solid fa-folder-plus mr-1"></i> Nueva Carpeta
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-sky-500 mb-5">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Total en Caja</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-1" id="saldo-total-caja">Bs. 0.00</p>
+                </div>
+                <h3 class="text-sm font-bold text-gray-500 uppercase mb-3">Carpetas de Ingresos/Gastos</h3>
+                <div id="lista-carpetas" class="space-y-3"></div>
+            </div>
+
+            <div id="vista-detalle-carpeta" class="vista-interna">
+                <div class="flex items-center mb-4">
+                    <button onclick="volverCarpetas()" class="text-gray-500 mr-3 text-xl hover:text-sky-500"><i class="fa-solid fa-arrow-left"></i></button>
+                    <h2 class="text-xl font-bold text-gray-800 truncate pr-2" id="titulo-carpeta-detalle">Detalle</h2>
+                </div>
+                <div class="flex justify-between items-center mb-4 gap-2">
+                    <div class="bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-100 flex-1">
+                        <p class="text-[10px] text-gray-400 uppercase">Total Carpeta</p>
+                        <p class="font-bold text-sky-500" id="total-carpeta-detalle">Bs 0.00</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="flex flex-col gap-1">
+                            <button onclick="descargarReporteCarpetaJPG()" class="bg-white hover:bg-gray-50 text-sky-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-sky-100 text-center">
+                                <i class="fa-solid fa-image"></i> JPG
+                            </button>
+                            <button onclick="descargarReporteCarpetaPDF()" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-red-200 text-center">
+                                <i class="fa-solid fa-file-pdf"></i> PDF
+                            </button>
+                        </div>
+                        <button onclick="abrirModalAporte()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-lg shadow-sm text-sm font-semibold text-center leading-tight">
+                            <i class="fa-solid fa-plus"></i><br><span class="text-[10px]">Movimiento</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="lista-aportes" class="space-y-3 bg-white rounded-xl p-2 shadow-sm border border-gray-100"></div>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- PESTAÑA: PARTIDOS              -->
+        <!-- ============================== -->
+        <section id="tab-partidos" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Partidos</h2>
+                <div class="flex gap-2 items-center">
+                    <!-- Botones Generales de Partidos a la vista de TODOS -->
+                    <div class="flex flex-col gap-1">
+                        <button onclick="descargarReportePartidosJPG()" class="bg-white hover:bg-gray-50 text-sky-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-sky-100 text-center">
+                            <i class="fa-solid fa-image"></i> JPG
+                        </button>
+                        <button onclick="descargarReportePartidosPDF()" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-red-200 text-center">
+                            <i class="fa-solid fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
+                    <!-- Botón de añadir (Solo Admin) -->
+                    <button onclick="abrirModalPartido()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 h-full rounded-lg shadow-sm text-sm font-semibold">
+                        <i class="fa-solid fa-plus mr-1"></i> Añadir
+                    </button>
+                </div>
+            </div>
+            <div id="lista-partidos" class="space-y-4"></div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- PESTAÑA: DIRIGENTES            -->
+        <!-- ============================== -->
+        <section id="tab-dirigentes" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Dirigentes</h2>
+                <button onclick="abrirModalDirigente()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-semibold">
+                    <i class="fa-solid fa-user-plus mr-1"></i> Agregar
+                </button>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <ul id="lista-dirigentes" class="divide-y divide-gray-100"></ul>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- PESTAÑA: JUGADORES             -->
+        <!-- ============================== -->
+        <section id="tab-jugadores" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Plantel</h2>
+                <div class="flex gap-2 items-center">
+                    <!-- Botones de Reporte Visibles a TODOS -->
+                    <div class="flex flex-col gap-1">
+                        <button onclick="descargarReporteJugadoresJPG()" class="bg-white hover:bg-gray-50 text-sky-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-sky-100 text-center">
+                            <i class="fa-solid fa-image"></i> JPG
+                        </button>
+                        <button onclick="descargarReporteJugadoresPDF()" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-red-200 text-center">
+                            <i class="fa-solid fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
+                    <button onclick="nuevoJugador()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 h-full rounded-lg shadow-sm text-sm font-semibold">
+                        <i class="fa-solid fa-user-plus mr-1"></i> Agregar
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3" id="lista-jugadores"></div>
+        </section>
+
+    </main>
+
+    <!-- MODALES DE EDICIÓN ... -->
+
+    <!-- Modal: Dirigente -->
+    <div id="modal-dirigente" class="modal p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5">
+            <h3 class="text-lg font-bold mb-4 text-sky-600" id="md-titulo">Añadir Dirigente</h3>
+            <input type="hidden" id="md-id">
+            <div class="space-y-3">
+                <div><label class="text-xs text-gray-500">Nombre Completo</label><input type="text" id="md-nombre" placeholder="Ej: Juan Perez" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-5">
+                <button onclick="cerrarModal('modal-dirigente')" class="px-4 py-2 text-gray-500">Cancelar</button>
+                <button onclick="guardarDirigente()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Nueva Carpeta -->
+    <div id="modal-carpeta" class="modal p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5">
+            <h3 class="text-lg font-bold mb-4 text-sky-600" id="mca-titulo">Nueva Carpeta de Caja</h3>
+            <input type="hidden" id="mca-id">
+            <div class="space-y-3">
+                <div><label class="text-xs text-gray-500">Nombre de la Carpeta</label><input type="text" id="mca-nombre" placeholder="Ej: Cuotas Segundo Partido" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-5">
+                <button onclick="cerrarModal('modal-carpeta')" class="px-4 py-2 text-gray-500">Cancelar</button>
+                <button onclick="guardarCarpeta()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Nuevo/Editar Aporte -->
+    <div id="modal-aporte" class="modal p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5">
+            <h3 class="text-lg font-bold mb-4 text-sky-600" id="map-titulo">Nuevo Movimiento</h3>
+            <input type="hidden" id="map-aporte-id">
+            <div class="space-y-3">
+                <div class="bg-sky-50 p-2 rounded border border-sky-100">
+                    <label class="text-xs text-sky-700 font-bold block mb-1">¿Qué tipo de movimiento es?</label>
+                    <select id="map-tipo" class="w-full border-2 border-sky-200 p-2 rounded focus:outline-none focus:border-sky-500 font-bold text-gray-700">
+                        <option value="ingreso" class="text-green-600">🟢 INGRESO (+ Entró dinero)</option>
+                        <option value="egreso" class="text-red-600">🔴 EGRESO (- Se sacó dinero)</option>
+                        <option value="pendiente" class="text-yellow-600">🟡 PENDIENTE (No canceló / Falta)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500">Dirigente o Responsable</label>
+                    <select id="map-dirigente" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></select>
+                </div>
+                <div><label class="text-xs text-gray-500">Monto (Bs)</label><input type="number" id="map-monto" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+                <div><label class="text-xs text-gray-500">Fecha</label><input type="date" id="map-fecha" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+                <div><label class="text-xs text-gray-500">Observación (Motivo)</label><textarea id="map-obs" class="w-full border-2 border-sky-100 p-2 rounded text-sm focus:outline-none focus:border-sky-400" rows="2" placeholder="Ej: Dinero para arbitraje..."></textarea></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-5">
+                <button onclick="cerrarModal('modal-aporte')" class="px-4 py-2 text-gray-500">Cancelar</button>
+                <button onclick="guardarAporte()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Partido -->
+    <div id="modal-partido" class="modal p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold mb-4 text-sky-600" id="mp-titulo-modal">Registrar Partido</h3>
+            <input type="hidden" id="mp-id">
+            <div class="space-y-3">
+                <div><label class="text-xs text-gray-500 font-bold text-sky-600">Título / Número de Partido</label><input type="text" id="mp-titulo-input" placeholder="Ej: Primer Partido" class="w-full border-2 border-sky-200 p-2 rounded focus:outline-none focus:border-sky-500 font-bold"></div>
+                <div><label class="text-xs text-gray-500">Fecha</label><input type="date" id="mp-fecha" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+                <div><label class="text-xs text-gray-500">Equipo Rival</label><input type="text" id="mp-rival" placeholder="Ej: Central Portada" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+                <div class="flex gap-4">
+                    <div class="w-1/2"><label class="text-xs text-gray-500 text-green-600 font-bold">Goles (Racing)</label><input type="number" id="mp-gf" class="w-full border-2 border-green-200 p-2 rounded text-center font-bold focus:outline-none focus:border-green-400" value="0"></div>
+                    <div class="w-1/2"><label class="text-xs text-gray-500 text-red-600 font-bold">Goles (Rival)</label><input type="number" id="mp-gc" class="w-full border-2 border-red-200 p-2 rounded text-center font-bold focus:outline-none focus:border-red-400" value="0"></div>
+                </div>
+                
+                <div class="mt-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                    <label class="text-xs text-red-700 font-bold block mb-1"><i class="fa-solid fa-wallet mr-1"></i> Descontar pago de jugadores de:</label>
+                    <select id="mp-carpeta" class="w-full border-2 border-red-200 p-2 rounded text-xs focus:outline-none focus:border-red-400 mb-2"></select>
+                    
+                    <label class="text-xs text-sky-600 font-bold mb-2 block border-t border-red-200 pt-2"><i class="fa-solid fa-users mr-1"></i> ¿Quiénes jugaron este partido?</label>
+                    <div id="contenedor-jugaron" class="max-h-32 overflow-y-auto bg-white border border-sky-100 rounded p-2 text-xs space-y-1"></div>
+                </div>
+
+                <div class="mt-3 p-3 bg-sky-50 rounded-lg border border-sky-100">
+                    <label class="text-xs text-sky-600 font-bold mb-2 block"><i class="fa-solid fa-futbol mr-1"></i> Goleadores</label>
+                    <div id="contenedor-goleadores" class="space-y-2 mb-2"></div>
+                    <button type="button" onclick="agregarFilaGoleador()" class="text-[10px] font-bold bg-white border border-sky-200 text-sky-500 px-2 py-1 rounded shadow-sm hover:bg-sky-100">+ Añadir Goleador</button>
+                </div>
+
+                <div><label class="text-xs text-gray-500">Observaciones</label><textarea id="mp-obs" class="w-full border-2 border-sky-100 p-2 rounded text-sm focus:outline-none focus:border-sky-400" rows="2"></textarea></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-5">
+                <button onclick="cerrarModal('modal-partido')" class="px-4 py-2 text-gray-500">Cancelar</button>
+                <button onclick="guardarPartido()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Jugador -->
+    <div id="modal-jugador" class="modal p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5">
+            <h3 class="text-lg font-bold mb-4 text-sky-600" id="mj-titulo">Editar Jugador</h3>
+            <input type="hidden" id="mj-id">
+            <div class="space-y-3">
+                <div><label class="text-xs text-gray-500">Nombre Completo</label><input type="text" id="mj-nombre" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+                <div><label class="text-xs text-gray-500">Apodo (Nombre en cancha)</label><input type="text" id="mj-apodo" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400" placeholder="Ej: Chiqui, Chelo..."></div>
+                <div><label class="text-xs text-gray-500">Posición</label><input type="text" id="mj-posicion" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400" placeholder="Ej: Delantero, Zaguero"></div>
+                <div><label class="text-xs text-gray-500">Pago por partido (Bs)</label><input type="number" id="mj-tarifa" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+                <div><label class="text-xs text-gray-500">Observación</label><input type="text" id="mj-observacion" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400" placeholder="Ej: Lesionado, Estudiante..."></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-5">
+                <button onclick="cerrarModal('modal-jugador')" class="px-4 py-2 text-gray-500">Cancelar</button>
+                <button onclick="guardarJugadorBoton()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navegación Inferior -->
+    <nav class="bg-white border-t border-gray-200 fixed bottom-0 w-full flex justify-around items-center h-16 pb-2 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-20">
+        <button onclick="cambiarTab('tab-caja', this)" class="nav-btn flex flex-col items-center w-1/4 text-sky-500">
+            <i class="fa-solid fa-wallet text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Caja</span>
+        </button>
+        <button onclick="cambiarTab('tab-partidos', this)" class="nav-btn flex flex-col items-center w-1/4 text-gray-400 hover:text-sky-300 transition">
+            <i class="fa-solid fa-trophy text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Partidos</span>
+        </button>
+        <button onclick="cambiarTab('tab-dirigentes', this)" class="nav-btn flex flex-col items-center w-1/4 text-gray-400 hover:text-sky-300 transition">
+            <i class="fa-solid fa-user-tie text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Dirigentes</span>
+        </button>
+        <button onclick="cambiarTab('tab-jugadores', this)" class="nav-btn flex flex-col items-center w-1/4 text-gray-400 hover:text-sky-300 transition">
+            <i class="fa-solid fa-users text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Jugadores</span>
+        </button>
+    </nav>
+
+    <input type="file" id="foto-uploader" style="display: none;" accept="image/*" onchange="procesarFotoDirigente(event)">
+    <input type="file" id="foto-uploader-jugador" style="display: none;" accept="image/*" onchange="procesarFotoJugador(event)">
+
+    <script>
+        // --- INICIALIZACIÓN (Modo Lector por Defecto) ---
+        window.onload = () => {
+            if(localStorage.getItem('racingAdmin') === 'true') {
+                document.body.classList.add('admin-mode');
+                document.getElementById('admin-btn').innerHTML = '<i class="fa-solid fa-right-from-bracket text-xl text-red-300 hover:text-red-500 transition"></i>';
+            } else {
+                document.body.classList.remove('admin-mode');
+                document.getElementById('admin-btn').innerHTML = '<i class="fa-solid fa-lock text-xl hover:text-gray-200 transition"></i>';
+            }
+            window.renderizarDirigentes(); 
+            window.renderizarJugadores(); 
+            window.renderizarCarpetasCaja(); 
+            window.renderizarPartidos();
+        };
+
+        window.loginAdmin = function() {
+            if(document.body.classList.contains('admin-mode')) {
+                if(confirm('¿Deseas CERRAR SESIÓN del modo administrador? Nadie podrá editar.')) {
+                    document.body.classList.remove('admin-mode');
+                    localStorage.removeItem('racingAdmin');
+                    document.getElementById('admin-btn').innerHTML = '<i class="fa-solid fa-lock text-xl hover:text-gray-200 transition"></i>';
+                    window.renderizarDirigentes();
+                    window.renderizarJugadores();
+                    window.renderizarCarpetasCaja();
+                    window.renderizarPartidos();
+                }
+                return;
+            }
+            const pass = prompt("Ingresa la contraseña de administrador:");
+            if (pass === "123") {
+                document.body.classList.add('admin-mode');
+                localStorage.setItem('racingAdmin', 'true');
+                document.getElementById('admin-btn').innerHTML = '<i class="fa-solid fa-right-from-bracket text-xl text-red-300 hover:text-red-500 transition"></i>';
+                alert("¡Bienvenido, Administrador! Ya puedes editar.");
+                window.renderizarDirigentes();
+                window.renderizarJugadores();
+                window.renderizarCarpetasCaja();
+                window.renderizarPartidos();
+                if(window.sincronizarNube) window.sincronizarNube();
+            } else if (pass !== null) {
+                alert("Contraseña incorrecta.");
+            }
+        }
+
+        window.cambiarTab = function(tabId, boton) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-sky-500'); btn.classList.add('text-gray-400');
+            });
+            boton.classList.remove('text-gray-400'); boton.classList.add('text-sky-500');
+        }
+        window.abrirModal = function(id) { document.getElementById(id).classList.add('active'); }
+        window.cerrarModal = function(id) { document.getElementById(id).classList.remove('active'); }
+
+        // --- REPORTES (HTML2CANVAS y jsPDF FORMATO A4 PERFECTO) ---
+        window.descargarReporteCarpetaJPG = function() {
+            generarReporteCarpetaHTML((element, btnOriginal) => {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Reporte_${window.carpetasCaja.find(c => c.id_db == window.carpetaActivaId).nombre.replace(/ /g, '_')}.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg', 1.0);
+                    link.click();
+                    element.remove();
+                    event.currentTarget.innerHTML = btnOriginal; 
+                });
+            }, event.currentTarget);
+        }
+
+        window.descargarReporteCarpetaPDF = function() {
+            generarReporteCarpetaHTML((element, btnOriginal) => {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`Reporte_${window.carpetasCaja.find(c => c.id_db == window.carpetaActivaId).nombre.replace(/ /g, '_')}.pdf`);
+                    element.remove();
+                    event.currentTarget.innerHTML = btnOriginal; 
+                });
+            }, event.currentTarget);
+        }
+
+        function generarReporteCarpetaHTML(callback, btnTarget) {
+            const carpeta = window.carpetasCaja.find(c => c.id_db == window.carpetaActivaId);
+            if(!carpeta) return;
+            const btnOriginal = btnTarget.innerHTML;
+            btnTarget.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            
+            let htmlContent = `
+                <div id="reporte-temp" style="padding: 40px; background: white; width: 800px; color: black; font-family: sans-serif; position: absolute; left: -9999px;">
+                    <div style="display: flex; align-items: center; border-bottom: 3px solid #0ea5e9; padding-bottom: 15px; margin-bottom: 20px;">
+                        <img src="logoracingloa.png" style="width: 140px; height: 140px; object-fit: contain; background: transparent; border: none; margin-right: 25px;" crossorigin="anonymous" />
+                        <div style="text-align: left;">
+                            <h1 style="color: #0ea5e9; margin: 0; font-size: 32px; font-weight: bold; text-transform: uppercase;">Club Racing Loa</h1>
+                            <h2 style="margin: 8px 0 0 0; font-size: 22px; color: #1f2937;">Reporte de Caja: ${carpeta.nombre}</h2>
+                            <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Fecha de emisión: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <tr style="background-color: #f3f4f6;">
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: left; font-size: 14px; color: #374151;">Fecha</th>
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: left; font-size: 14px; color: #374151;">Tipo</th>
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: left; font-size: 14px; color: #374151;">Responsable</th>
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: left; font-size: 14px; color: #374151;">Observación</th>
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: right; font-size: 14px; color: #374151;">Monto (Bs)</th>
+                        </tr>
+            `;
+            let total = 0;
+            let aportesOrdenados = [...(carpeta.aportes||[])].sort((a,b) => {
+                const getVal = (t) => t === 'egreso' ? 3 : (t === 'pendiente' ? 2 : 1);
+                let valA = getVal(a.tipo);
+                let valB = getVal(b.tipo);
+                if (valA !== valB) return valA - valB;
+                return new Date(b.fecha) - new Date(a.fecha);
+            });
+
+            aportesOrdenados.forEach(a => {
+                let esPendiente = a.tipo === 'pendiente';
+                let esEgreso = a.tipo === 'egreso';
+                let esIngreso = !esEgreso && !esPendiente;
+
+                if (esIngreso) total += a.monto;
+                if (esEgreso) total -= a.monto;
+
+                let color = esIngreso ? '#16a34a' : (esEgreso ? '#dc2626' : '#ca8a04');
+                let tipoStr = esIngreso ? 'Ingreso (+)' : (esEgreso ? 'Retiro (-)' : 'Pendiente (!)');
+                
+                htmlContent += `
+                    <tr>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-size: 14px;">${a.fecha}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-size: 14px; font-weight: bold; color: ${color};">${tipoStr}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-size: 14px; color: #1f2937;">${a.dirigenteNombre}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-size: 14px; color: #4b5563;">${a.observacion || '-'}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; text-align: right; font-size: 14px; font-weight: bold; color: ${color};">Bs ${a.monto.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            htmlContent += `</table><div style="text-align: right; font-size: 22px; font-weight: bold; color: #1f2937; padding-top: 10px;">Saldo Final: Bs ${total.toFixed(2)}</div></div>`;
+            document.body.insertAdjacentHTML('beforeend', htmlContent);
+            setTimeout(() => { callback(document.getElementById('reporte-temp'), btnOriginal); }, 500);
+        }
+
+        window.descargarUnPartidoJPG = function(id_db) {
+            generarReporteUnPartidoHTML(id_db, (element, btnOriginal) => {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Reporte_Partido.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg', 1.0);
+                    link.click();
+                    element.remove();
+                    event.currentTarget.innerHTML = btnOriginal; 
+                });
+            }, event.currentTarget);
+        }
+
+        window.descargarUnPartidoPDF = function(id_db) {
+            generarReporteUnPartidoHTML(id_db, (element, btnOriginal) => {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'pt', 'letter');
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth() - 40; 
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    pdf.addImage(imgData, 'JPEG', 20, 20, pdfWidth, pdfHeight);
+                    pdf.save(`Reporte_Partido.pdf`);
+                    element.remove();
+                    event.currentTarget.innerHTML = btnOriginal; 
+                });
+            }, event.currentTarget);
+        }
+
+        function generarReporteUnPartidoHTML(id, callback, btnTarget) {
+            const p = window.partidos.find(x => x.id_db === id);
+            if(!p) return;
+            const btnOriginal = btnTarget.innerHTML;
+            btnTarget.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            let tituloReporte = p.titulo ? `${p.titulo}` : 'Partido';
+
+            let htmlContent = `
+                <div id="reporte-temp" style="padding: 40px; background: white; width: 800px; color: black; font-family: sans-serif; position: absolute; left: -9999px;">
+                    <div style="display: flex; align-items: center; border-bottom: 3px solid #0ea5e9; padding-bottom: 15px; margin-bottom: 25px;">
+                        <img src="logoracingloa.png" style="width: 140px; height: 140px; object-fit: contain; background: transparent; border: none; margin-right: 25px;" crossorigin="anonymous" />
+                        <div style="text-align: left;">
+                            <h1 style="color: #0ea5e9; margin: 0; font-size: 32px; font-weight: bold; text-transform: uppercase;">Club Racing Loa</h1>
+                            <h2 style="margin: 8px 0 0 0; font-size: 22px; color: #1f2937;">Historial de Partido - ${tituloReporte}</h2>
+                            <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Fecha de emisión: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+
+                    <div style="background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                        <div style="text-align: center; font-size: 32px; font-weight: 900; color: #111827; margin-bottom: 10px;">
+                            RACING LOA <span style="color: #0ea5e9; margin: 0 15px;">${p.gf} - ${p.gc}</span> ${p.rival.toUpperCase()}
+                        </div>
+                        <div style="text-align: center; color: #4b5563; font-size: 16px; margin-bottom: 20px;">
+                            Fecha del partido: <strong>${p.fecha}</strong>
+                        </div>
+                        
+                        <div style="border-top: 1px dashed #d1d5db; padding-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 15px;">
+            `;
+            let goleadoresStr = p.goleadores && p.goleadores.length > 0 ? p.goleadores.map(g => `${g.nombre} (${g.goles})`).join(', ') : 'Ninguno';
+            htmlContent += `
+                            <div><strong>⚽ Goleadores:</strong> ${goleadoresStr}</div>
+                            <div><strong>Pago a Jugadores:</strong> Bs ${p.totalPagado || 0}</div>
+                            ${p.obs ? `<div style="grid-column: span 2; font-style: italic; color: #6b7280;"><strong>Obs:</strong> ${p.obs}</div>` : ''}
+                        </div>
+                    </div>
+            `;
+
+            // Si hay carpeta anclada, se imprime abajo en el mismo reporte
+            if (p.carpetaId) {
+                const carpeta = window.carpetasCaja.find(c => c.id_db === p.carpetaId);
+                if (carpeta) {
+                    let totalCajaMatch = carpeta.aportes ? carpeta.aportes.reduce((sum, a) => {
+                        if (a.tipo === 'egreso') return sum - a.monto;
+                        if (a.tipo === 'pendiente') return sum;
+                        return sum + a.monto;
+                    }, 0) : 0;
+
+                    htmlContent += `
+                        <div style="margin-top: 30px; border-top: 2px solid #0ea5e9; padding-top: 20px;">
+                            <h3 style="font-size: 20px; font-weight: bold; color: #1f2937; margin-bottom: 15px;">
+                                Reporte de Caja asociado: ${carpeta.nombre}
+                            </h3>
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                                <tr style="background-color: #f3f4f6;">
+                                    <th style="padding: 10px 6px; border: 1px solid #d1d5db; text-align: left; font-size: 13px; color: #374151;">Fecha</th>
+                                    <th style="padding: 10px 6px; border: 1px solid #d1d5db; text-align: left; font-size: 13px; color: #374151;">Tipo</th>
+                                    <th style="padding: 10px 6px; border: 1px solid #d1d5db; text-align: left; font-size: 13px; color: #374151;">Responsable</th>
+                                    <th style="padding: 10px 6px; border: 1px solid #d1d5db; text-align: left; font-size: 13px; color: #374151;">Observación</th>
+                                    <th style="padding: 10px 6px; border: 1px solid #d1d5db; text-align: right; font-size: 13px; color: #374151;">Monto (Bs)</th>
+                                </tr>
+                    `;
+                    let aportesOrdenados = [...(carpeta.aportes||[])].sort((a,b) => {
+                        const getVal = (t) => t === 'egreso' ? 3 : (t === 'pendiente' ? 2 : 1);
+                        let valA = getVal(a.tipo);
+                        let valB = getVal(b.tipo);
+                        if (valA !== valB) return valA - valB;
+                        return new Date(b.fecha) - new Date(a.fecha);
+                    });
+
+                    aportesOrdenados.forEach(a => {
+                        let esPendiente = a.tipo === 'pendiente';
+                        let esEgreso = a.tipo === 'egreso';
+                        let esIngreso = !esEgreso && !esPendiente;
+
+                        let color = esIngreso ? '#16a34a' : (esEgreso ? '#dc2626' : '#ca8a04');
+                        let tipoStr = esIngreso ? 'Ingreso (+)' : (esEgreso ? 'Retiro (-)' : 'Pendiente (!)');
+                        
+                        htmlContent += `
+                            <tr>
+                                <td style="padding: 8px 6px; border: 1px solid #e5e7eb; font-size: 13px;">${a.fecha}</td>
+                                <td style="padding: 8px 6px; border: 1px solid #e5e7eb; font-size: 13px; font-weight: bold; color: ${color};">${tipoStr}</td>
+                                <td style="padding: 8px 6px; border: 1px solid #e5e7eb; font-size: 13px; color: #1f2937;">${a.dirigenteNombre}</td>
+                                <td style="padding: 8px 6px; border: 1px solid #e5e7eb; font-size: 13px; color: #4b5563;">${a.observacion || '-'}</td>
+                                <td style="padding: 8px 6px; border: 1px solid #e5e7eb; text-align: right; font-size: 13px; font-weight: bold; color: ${color};">Bs ${a.monto.toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
+                    htmlContent += `</table><div style="text-align: right; font-size: 18px; font-weight: bold; color: #1f2937;">Saldo Final de Caja: Bs ${totalCajaMatch.toFixed(2)}</div></div>`;
+                }
+            }
+
+            htmlContent += `</div>`;
+            document.body.insertAdjacentHTML('beforeend', htmlContent);
+            setTimeout(() => { callback(document.getElementById('reporte-temp'), btnOriginal); }, 500);
+        }
+
+        window.descargarReportePartidosJPG = function() {
+            generarReportePartidosHTML((element, btnOriginal) => {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Reporte_Partidos_General.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg', 1.0);
+                    link.click();
+                    element.remove();
+                    event.currentTarget.innerHTML = btnOriginal; 
+                });
+            }, event.currentTarget);
+        }
+
+        window.descargarReportePartidosPDF = function() {
+            generarReportePartidosHTML((element, btnOriginal) => {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`Reporte_Partidos_General.pdf`);
+                    element.remove();
+                    event.currentTarget.innerHTML = btnOriginal; 
+                });
+            }, event.currentTarget);
+        }
+
+        function generarReportePartidosHTML(callback, btnTarget) {
+            const btnOriginal = btnTarget.innerHTML;
+            btnTarget.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            let htmlContent = `
+                <div id="reporte-temp" style="padding: 40px; background: white; width: 800px; color: black; font-family: sans-serif; position: absolute; left: -9999px;">
+                    <div style="display: flex; align-items: center; border-bottom: 3px solid #0ea5e9; padding-bottom: 15px; margin-bottom: 20px;">
+                        <img src="logoracingloa.png" style="width: 140px; height: 140px; object-fit: contain; background: transparent; border: none; margin-right: 25px;" crossorigin="anonymous" />
+                        <div style="text-align: left;">
+                            <h1 style="color: #0ea5e9; margin: 0; font-size: 32px; font-weight: bold; text-transform: uppercase;">Club Racing Loa</h1>
+                            <h2 style="margin: 8px 0 0 0; font-size: 22px; color: #1f2937;">Historial Completo de Partidos</h2>
+                            <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Fecha de emisión: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div><div style="display: flex; flex-direction: column; gap: 15px;">
+            `;
+            
+            window.partidos.forEach(p => {
+                let resultado = p.gf > p.gc ? 'Victoria' : (p.gf < p.gc ? 'Derrota' : 'Empate');
+                let color = p.gf > p.gc ? '#16a34a' : (p.gf < p.gc ? '#dc2626' : '#ca8a04');
+                let bgLighter = p.gf > p.gc ? '#f0fdf4' : (p.gf < p.gc ? '#fef2f2' : '#fefce8');
+                let goleadores = p.goleadores && p.goleadores.length > 0 ? p.goleadores.map(g => `${g.nombre} (${g.goles})`).join(', ') : 'Ninguno';
+
+                htmlContent += `
+                    <div style="border-left: 5px solid ${color}; padding: 15px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <div style="font-weight: bold; font-size: 16px; color: #1f2937;">Racing Loa vs <span style="text-transform: uppercase;">${p.rival}</span> <span style="color: #6b7280; font-weight: normal; font-size: 14px; margin-left: 5px;">(Fecha: ${p.fecha})</span></div>
+                            <div style="color: ${color}; font-weight: bold; background: ${bgLighter}; padding: 4px 10px; border-radius: 20px; font-size: 12px; border: 1px solid ${color};">${resultado}</div>
+                        </div>
+                        <div style="font-size: 28px; font-weight: 900; margin: 15px 0; text-align: center; color: #111827;">
+                            RACING <span style="color: #0ea5e9;">${p.gf}</span> - <span style="color: #6b7280;">${p.gc}</span> ${p.rival.toUpperCase()}
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #d1d5db;">
+                            <div style="font-size: 13px; color: #4b5563;"><strong>Pago a Jugadores:</strong> Bs ${p.totalPagado || 0}</div>
+                            <div style="font-size: 13px; color: #4b5563; grid-column: span 2;"><strong>⚽ Goleadores:</strong> ${goleadores}</div>
+                            ${p.obs ? `<div style="font-size: 13px; color: #6b7280; font-style: italic; grid-column: span 2;"><strong>Obs:</strong> ${p.obs}</div>` : ''}
+                        </div>
+                    </div>`;
+            });
+            htmlContent += `</div></div>`;
+            document.body.insertAdjacentHTML('beforeend', htmlContent);
+            setTimeout(() => { callback(document.getElementById('reporte-temp'), btnOriginal); }, 500);
+        }
+
+        window.descargarReporteJugadoresJPG = function() {
+            generarReporteJugadoresHTML((element, btnOriginal) => {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Reporte_Plantel.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg', 1.0);
+                    link.click();
+                    element.remove();
+                    event.currentTarget.innerHTML = btnOriginal; 
+                });
+            }, event.currentTarget);
+        }
+
+        window.descargarReporteJugadoresPDF = function() {
+            generarReporteJugadoresHTML((element, btnOriginal) => {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`Reporte_Plantel.pdf`);
+                    element.remove();
+                    event.currentTarget.innerHTML = btnOriginal; 
+                });
+            }, event.currentTarget);
+        }
+
+        function generarReporteJugadoresHTML(callback, btnTarget) {
+            const btnOriginal = btnTarget.innerHTML;
+            btnTarget.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            
+            let htmlContent = `
+                <div id="reporte-temp" style="padding: 40px; background: white; width: 800px; color: black; font-family: sans-serif; position: absolute; left: -9999px;">
+                    <div style="display: flex; align-items: center; border-bottom: 3px solid #0ea5e9; padding-bottom: 15px; margin-bottom: 20px;">
+                        <img src="logoracingloa.png" style="width: 140px; height: 140px; object-fit: contain; background: transparent; border: none; margin-right: 25px;" crossorigin="anonymous" />
+                        <div style="text-align: left;">
+                            <h1 style="color: #0ea5e9; margin: 0; font-size: 32px; font-weight: bold; text-transform: uppercase;">Club Racing Loa</h1>
+                            <h2 style="margin: 8px 0 0 0; font-size: 22px; color: #1f2937;">Planilla Oficial de Jugadores</h2>
+                            <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">Fecha de emisión: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <tr style="background-color: #f3f4f6;">
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: left; font-size: 14px; color: #374151;">Nombre Completo</th>
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: left; font-size: 14px; color: #374151;">Apodo</th>
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: left; font-size: 14px; color: #374151;">Posición</th>
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: left; font-size: 14px; color: #374151;">Observación</th>
+                            <th style="padding: 12px 8px; border: 1px solid #d1d5db; text-align: right; font-size: 14px; color: #374151;">Tarifa (Bs)</th>
+                        </tr>
+            `;
+            
+            let sortedJugadores = [...window.jugadores].sort((a, b) => a.nombre.localeCompare(b.nombre));
+            sortedJugadores.forEach(j => {
+                htmlContent += `
+                    <tr>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-size: 14px; font-weight: bold; color: #1f2937;">${j.nombre}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-size: 14px; color: #4b5563;">${j.apodo || '-'}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-size: 14px; color: #4b5563;">${j.posicion || '-'}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; font-size: 14px; color: #4b5563;">${j.observacion || '-'}</td>
+                        <td style="padding: 10px 8px; border: 1px solid #e5e7eb; text-align: right; font-size: 14px; font-weight: bold; color: #16a34a;">Bs ${j.tarifa || 0}</td>
+                    </tr>
+                `;
+            });
+
+            htmlContent += `</table></div>`;
+            document.body.insertAdjacentHTML('beforeend', htmlContent);
+            setTimeout(() => { callback(document.getElementById('reporte-temp'), btnOriginal); }, 500);
+        }
+
+        // --- MÓDULO JUGADORES ---
+        window.renderizarJugadores = function() {
+            window.jugadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            const lista = document.getElementById('lista-jugadores'); lista.innerHTML = '';
+            window.jugadores.forEach((j) => {
+                let avatar = j.foto ? `<img src="${j.foto}" class="w-12 h-12 rounded-full object-cover border-2 border-sky-200">` : `<div class="w-12 h-12 rounded-full bg-sky-50 flex items-center justify-center text-sky-400 border border-sky-100"><i class="fa-solid fa-user"></i></div>`;
+
+                lista.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl shadow-sm text-center border border-sky-50 relative hover:shadow-md transition group">
+                        <div class="mx-auto mb-2 relative w-12 h-12 ${document.body.classList.contains('admin-mode') ? 'cursor-pointer' : ''}" onclick="if(document.body.classList.contains('admin-mode')) solicitarFotoJugador('${j.id_db}')">
+                            ${avatar}
+                            <div class="admin-only absolute inset-0 bg-black bg-opacity-40 rounded-full hidden group-hover:flex items-center justify-center text-white text-[10px]"><i class="fa-solid fa-camera"></i></div>
+                        </div>
+                        <h4 class="font-bold text-gray-800 text-[11px] leading-tight mb-1 h-6 overflow-hidden flex items-center justify-center">${j.nombre}</h4>
+                        <p class="text-[9px] text-gray-500 font-medium italic mb-1">${j.apodo ? '"' + j.apodo + '"' : 'Sin apodo'}</p>
+                        <p class="text-[9px] text-gray-400 mb-1">${j.posicion || 'Sin Posición'}</p>
+                        ${j.observacion ? `<p class="text-[9px] text-amber-600 bg-amber-50 rounded px-1 mb-1 font-semibold">${j.observacion}</p>` : ''}
+                        <p class="text-[10px] text-green-600 font-bold bg-green-50 rounded-full px-2 py-1 inline-block">Bs ${j.tarifa}</p>
+                        <div class="admin-only absolute top-2 right-2 flex flex-col gap-1">
+                            <button onclick="editarJugador('${j.id_db}')" class="text-sky-300 hover:text-sky-600 bg-sky-50 rounded-full p-1 w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                            <button onclick="window.borrarRegistroLocal('jugadores', '${j.id_db}')" class="text-red-300 hover:text-red-600 bg-red-50 rounded-full p-1 w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        </div>
+                    </div>`;
+            });
+        }
+        window.abrirModalDirigente = function() {
+            document.getElementById('md-titulo').innerText = "Nuevo Dirigente";
+            document.getElementById('md-id').value = "";
+            document.getElementById('md-nombre').value = "";
+            abrirModal('modal-dirigente');
+        }
+        window.nuevoJugador = function() {
+            document.getElementById('mj-titulo').innerText = "Nuevo Jugador";
+            document.getElementById('mj-id').value = "";
+            document.getElementById('mj-nombre').value = "";
+            document.getElementById('mj-nombre').readOnly = false;
+            document.getElementById('mj-apodo').value = "";
+            document.getElementById('mj-posicion').value = "";
+            document.getElementById('mj-tarifa').value = "0";
+            document.getElementById('mj-observacion').value = "";
+            abrirModal('modal-jugador');
+        }
+        window.editarJugador = function(id_db) {
+            const j = window.jugadores.find(x => x.id_db === id_db);
+            if(j) {
+                document.getElementById('mj-titulo').innerText = "Editar Jugador";
+                document.getElementById('mj-id').value = j.id_db;
+                document.getElementById('mj-nombre').value = j.nombre;
+                document.getElementById('mj-nombre').readOnly = false;
+                document.getElementById('mj-apodo').value = j.apodo || '';
+                document.getElementById('mj-posicion').value = j.posicion || '';
+                document.getElementById('mj-tarifa').value = j.tarifa || 0;
+                document.getElementById('mj-observacion').value = j.observacion || '';
+                abrirModal('modal-jugador');
+            }
+        }
+        window.guardarJugadorBoton = function() {
+            const id = document.getElementById('mj-id').value;
+            const nombre = document.getElementById('mj-nombre').value;
+            const apodo = document.getElementById('mj-apodo').value;
+            const posicion = document.getElementById('mj-posicion').value;
+            const tarifa = parseFloat(document.getElementById('mj-tarifa').value) || 0;
+            const observacion = document.getElementById('mj-observacion').value;
+            
+            if(!nombre) return alert("Debe tener un nombre principal.");
+            window.guardarYSubirJugador({ nombre, apodo, posicion, tarifa, observacion }, id ? id : null);
+            cerrarModal('modal-jugador');
+        }
+        window.solicitarFotoJugador = function(id_db) {
+            jugadorAEditarFoto = id_db;
+            document.getElementById('foto-uploader-jugador').click();
+        }
+        window.procesarFotoJugador = function(event) {
+            const file = event.target.files[0];
+            if(file && jugadorAEditarFoto !== null) {
+                const reader = new FileReader();
+                reader.onload = function(e) { window.guardarYSubirJugador({ foto: e.target.result }, jugadorAEditarFoto); jugadorAEditarFoto = null; };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- DIRIGENTES ---
+        window.renderizarDirigentes = function() {
+            window.dirigentes.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            const lista = document.getElementById('lista-dirigentes'); lista.innerHTML = '';
+            window.dirigentes.forEach((d) => {
+                let avatar = d.foto 
+                    ? `<img src="${d.foto}" class="w-10 h-10 rounded-full object-cover border-2 border-sky-200">`
+                    : `<div class="w-10 h-10 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center font-bold border-2 border-sky-200">${d.nombre.charAt(0)}</div>`;
+                
+                lista.innerHTML += `
+                    <li class="p-3 flex justify-between items-center border-b border-gray-100 hover:bg-sky-50 transition bg-white">
+                        <div class="flex items-center">
+                            <div class="mr-3 relative group ${document.body.classList.contains('admin-mode') ? 'cursor-pointer' : ''}" onclick="if(document.body.classList.contains('admin-mode')) solicitarFotoDirigente('${d.id_db}')">
+                                ${avatar}
+                                <div class="admin-only absolute inset-0 bg-black bg-opacity-40 rounded-full hidden group-hover:flex items-center justify-center text-white text-[10px]"><i class="fa-solid fa-camera"></i></div>
+                            </div>
+                            <span class="font-medium text-gray-800 text-sm">${d.nombre}</span>
+                        </div>
+                        <div class="admin-only flex gap-3">
+                            <button onclick="editarDirigenteUI('${d.id_db}')" class="text-sky-300 hover:text-sky-600 w-8 h-8 flex justify-center items-center rounded-full hover:bg-sky-100"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="window.borrarRegistroLocal('dirigentes', '${d.id_db}')" class="text-red-300 hover:text-red-600 w-8 h-8 flex justify-center items-center rounded-full hover:bg-red-50"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </li>`;
+            });
+        }
+        window.editarDirigenteUI = function(id_db) {
+            const d = window.dirigentes.find(x => x.id_db === id_db);
+            if(d) {
+                document.getElementById('md-titulo').innerText = "Editar Dirigente";
+                document.getElementById('md-id').value = d.id_db;
+                document.getElementById('md-nombre').value = d.nombre;
+                abrirModal('modal-dirigente');
+            }
+        }
+        window.guardarDirigente = function() {
+            const id = document.getElementById('md-id').value;
+            const nombre = document.getElementById('md-nombre').value;
+            if(!nombre) return alert("Pon un nombre.");
+            window.guardarYSubirDirigente({ nombre: nombre }, id ? id : null);
+            cerrarModal('modal-dirigente');
+        }
+        window.solicitarFotoDirigente = function(id_db) {
+            dirigenteAEditarFoto = id_db;
+            document.getElementById('foto-uploader').click();
+        }
+        window.procesarFotoDirigente = function(event) {
+            const file = event.target.files[0];
+            if(file && dirigenteAEditarFoto !== null) {
+                const reader = new FileReader();
+                reader.onload = function(e) { window.guardarYSubirDirigente({ foto: e.target.result }, dirigenteAEditarFoto); dirigenteAEditarFoto = null; };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- CAJA GENERAL ---
+        window.renderizarCarpetasCaja = function() {
+            const lista = document.getElementById('lista-carpetas'); lista.innerHTML = '';
+            let granTotal = 0;
+
+            window.carpetasCaja.forEach(c => {
+                let totalCarpeta = c.aportes ? c.aportes.reduce((sum, a) => {
+                    if (a.tipo === 'egreso') return sum - a.monto;
+                    if (a.tipo === 'pendiente') return sum;
+                    return sum + a.monto;
+                }, 0) : 0;
+                granTotal += totalCarpeta;
+                lista.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-sky-100 flex justify-between items-center cursor-pointer hover:shadow-md transition" onclick="abrirCarpeta('${c.id_db}')">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-sky-50 text-sky-500 rounded-lg flex items-center justify-center mr-3"><i class="fa-solid fa-folder-open"></i></div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm">${c.nombre}</h4>
+                                <p class="text-[10px] text-gray-400">${c.aportes ? c.aportes.length : 0} registros</p>
+                            </div>
+                        </div>
+                        <div class="text-right flex items-center">
+                            <div class="mr-2 text-right">
+                                <p class="font-bold ${totalCarpeta < 0 ? 'text-red-600' : 'text-green-600'} text-sm">Bs ${totalCarpeta.toFixed(2)}</p>
+                            </div>
+                            <div class="admin-only flex flex-col gap-1 ml-2">
+                                <button onclick="event.stopPropagation(); editarCarpeta('${c.id_db}')" class="text-sky-300 hover:text-sky-600 bg-sky-50 rounded p-1.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                <button onclick="event.stopPropagation(); window.borrarRegistroLocal('carpetasCaja', '${c.id_db}')" class="text-red-300 hover:text-red-600 bg-red-50 rounded p-1.5"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-sky-200 text-xs ml-2"></i>
+                        </div>
+                    </div>`;
+            });
+
+            document.getElementById('saldo-total-caja').innerText = `Bs. ${granTotal.toFixed(2)}`;
+        }
+        window.abrirModalCarpeta = function() {
+            document.getElementById('mca-titulo').innerText = "Nueva Carpeta de Caja";
+            document.getElementById('mca-id').value = "";
+            document.getElementById('mca-nombre').value = "";
+            abrirModal('modal-carpeta');
+        }
+        window.editarCarpeta = function(id_db) {
+            const c = window.carpetasCaja.find(x => x.id_db === id_db);
+            if(c) {
+                document.getElementById('mca-titulo').innerText = "Editar Carpeta";
+                document.getElementById('mca-id').value = c.id_db;
+                document.getElementById('mca-nombre').value = c.nombre;
+                abrirModal('modal-carpeta');
+            }
+        }
+        window.guardarCarpeta = function() {
+            const id = document.getElementById('mca-id').value;
+            const nombre = document.getElementById('mca-nombre').value;
+            if(nombre.trim() !== '') {
+                if(id) {
+                    window.guardarYSubirCarpeta({ nombre }, id);
+                } else {
+                    window.guardarYSubirCarpeta({ nombre, aportes: [] });
+                }
+                cerrarModal('modal-carpeta');
+            }
+        }
+        window.abrirCarpeta = function(id_db) {
+            window.carpetaActivaId = id_db;
+            document.getElementById('vista-carpetas').classList.remove('active');
+            document.getElementById('vista-detalle-carpeta').classList.add('active');
+            window.actualizarDetalleCarpeta();
+        }
+        window.volverCarpetas = function() {
+            window.carpetaActivaId = null;
+            document.getElementById('vista-detalle-carpeta').classList.remove('active');
+            document.getElementById('vista-carpetas').classList.add('active');
+            window.renderizarCarpetasCaja();
+        }
+        window.abrirModalAporte = function(idAporte = null) {
+            const select = document.getElementById('map-dirigente');
+            select.innerHTML = '<option value="general">Gasto/Ingreso General (Sin dirigente)</option>';
+            window.dirigentes.forEach(d => { select.innerHTML += `<option value="${d.id_db}">${d.nombre}</option>`; });
+
+            if(idAporte) {
+                document.getElementById('map-titulo').innerText = "Editar Movimiento";
+                const carpeta = window.carpetasCaja.find(c => c.id_db == window.carpetaActivaId);
+                const aporte = carpeta.aportes.find(a => a.id == idAporte);
+                document.getElementById('map-aporte-id').value = aporte.id;
+                document.getElementById('map-tipo').value = aporte.tipo || 'ingreso';
+                document.getElementById('map-dirigente').value = aporte.dirigenteId || 'general';
+                document.getElementById('map-monto').value = aporte.monto;
+                document.getElementById('map-fecha').value = aporte.fecha;
+                document.getElementById('map-obs').value = aporte.observacion;
+            } else {
+                document.getElementById('map-titulo').innerText = "Añadir Movimiento";
+                document.getElementById('map-aporte-id').value = '';
+                document.getElementById('map-tipo').value = 'ingreso';
+                document.getElementById('map-dirigente').value = 'general';
+                document.getElementById('map-monto').value = '';
+                document.getElementById('map-fecha').value = '';
+                document.getElementById('map-obs').value = '';
+            }
+            abrirModal('modal-aporte');
+        }
+        window.guardarAporte = function() {
+            const idAporte = document.getElementById('map-aporte-id').value;
+            const tipo = document.getElementById('map-tipo').value;
+            const dirId = document.getElementById('map-dirigente').value;
+            const monto = parseFloat(document.getElementById('map-monto').value);
+            const fecha = document.getElementById('map-fecha').value;
+            const obs = document.getElementById('map-obs').value;
+
+            if(isNaN(monto) || !fecha) return alert("Completa el monto y la fecha.");
+
+            let dirNombre = "General";
+            if(dirId !== 'general') {
+                const dirigente = window.dirigentes.find(d => d.id_db == dirId);
+                if(dirigente) dirNombre = dirigente.nombre;
+            }
+
+            const carpeta = window.carpetasCaja.find(c => c.id_db == window.carpetaActivaId);
+            let nuevosAportes = [...(carpeta.aportes || [])];
+            
+            if(idAporte) {
+                const index = nuevosAportes.findIndex(a => a.id == idAporte);
+                nuevosAportes[index] = { id: idAporte, tipo, dirigenteId: dirId, dirigenteNombre: dirNombre, monto, fecha, observacion: obs };
+            } else {
+                nuevosAportes.push({ id: 'ap_' + Date.now(), tipo, dirigenteId: dirId, dirigenteNombre: dirNombre, monto, fecha, observacion: obs });
+            }
+            
+            window.guardarYSubirCarpeta({ aportes: nuevosAportes }, window.carpetaActivaId);
+            cerrarModal('modal-aporte');
+        }
+        window.eliminarAporte = function(idAporte) {
+            if(confirm("¿Eliminar este movimiento?")) {
+                const carpeta = window.carpetasCaja.find(c => c.id_db == window.carpetaActivaId);
+                let nuevosAportes = carpeta.aportes.filter(a => a.id !== idAporte);
+                window.guardarYSubirCarpeta({ aportes: nuevosAportes }, window.carpetaActivaId);
+            }
+        }
+        window.actualizarDetalleCarpeta = function() {
+            const carpeta = window.carpetasCaja.find(c => c.id_db == window.carpetaActivaId);
+            if(!carpeta) return;
+            document.getElementById('titulo-carpeta-detalle').innerText = carpeta.nombre;
+            const lista = document.getElementById('lista-aportes');
+            lista.innerHTML = '';
+            let total = 0;
+            
+            if(carpeta.aportes && carpeta.aportes.length > 0) {
+                let aportesOrdenados = [...carpeta.aportes].sort((a,b) => {
+                    const getVal = (t) => t === 'egreso' ? 3 : (t === 'pendiente' ? 2 : 1);
+                    let valA = getVal(a.tipo);
+                    let valB = getVal(b.tipo);
+                    if (valA !== valB) return valA - valB;
+                    return new Date(b.fecha) - new Date(a.fecha);
+                });
+
+                aportesOrdenados.forEach(a => {
+                    let esPendiente = a.tipo === 'pendiente';
+                    let esEgreso = a.tipo === 'egreso';
+                    let esIngreso = !esEgreso && !esPendiente;
+
+                    if (esIngreso) total += a.monto;
+                    if (esEgreso) total -= a.monto;
+
+                    let colorTexto = esIngreso ? 'text-green-600' : (esEgreso ? 'text-red-600' : 'text-yellow-600');
+                    let colorFondo = esIngreso ? 'bg-green-50 border-green-100' : (esEgreso ? 'bg-red-50 border-red-100' : 'bg-yellow-50 border-yellow-100');
+                    let iconDir = esIngreso ? 'fa-arrow-down text-green-500' : (esEgreso ? 'fa-arrow-up text-red-500' : 'fa-circle-exclamation text-yellow-500');
+                    let signo = esIngreso ? '+' : (esEgreso ? '-' : 'Falta');
+
+                    lista.innerHTML += `
+                        <div class="p-3 border-b border-gray-50 last:border-0 flex justify-between items-center group">
+                            <div class="flex-1">
+                                <p class="font-bold text-sm text-gray-800"><i class="fa-solid ${iconDir} mr-1 text-xs"></i> ${a.dirigenteNombre}</p>
+                                <p class="text-[10px] text-gray-400"><i class="fa-regular fa-calendar mr-1 text-sky-300"></i>${a.fecha}</p>
+                                ${a.observacion ? `<p class="text-[10px] text-gray-500 italic mt-1 bg-gray-50 p-1 rounded inline-block">Obs: ${a.observacion}</p>` : ''}
+                            </div>
+                            <div class="flex flex-col items-end">
+                                <div class="font-bold ${colorTexto} ${colorFondo} px-2 py-1 rounded shadow-sm border mb-1">${signo} Bs ${a.monto}</div>
+                                <div class="admin-only flex gap-2 mt-1">
+                                    <button onclick="abrirModalAporte('${a.id}')" class="text-[10px] text-sky-500 hover:text-sky-700 bg-sky-50 px-2 rounded"><i class="fa-solid fa-pen"></i></button>
+                                    <button onclick="eliminarAporte('${a.id}')" class="text-[10px] text-red-500 hover:text-red-700 bg-red-50 px-2 rounded"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+            } else {
+                lista.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Aún no hay movimientos.</p>';
+            }
+            document.getElementById('total-carpeta-detalle').innerText = `Bs ${total.toFixed(2)}`;
+            document.getElementById('total-carpeta-detalle').className = `font-bold ${total < 0 ? 'text-red-500' : 'text-sky-500'}`;
+        }
+
+        // --- PARTIDOS Y DESCUENTOS ---
+        window.abrirModalPartido = function(id = null) {
+            const selCarpeta = document.getElementById('mp-carpeta');
+            selCarpeta.innerHTML = '<option value="">-- NO descontar de ninguna carpeta --</option>';
+            window.carpetasCaja.forEach(c => {
+                let total = c.aportes ? c.aportes.reduce((s, a) => {
+                    if (a.tipo === 'egreso') return s - a.monto;
+                    if (a.tipo === 'pendiente') return s;
+                    return s + a.monto;
+                }, 0) : 0;
+                selCarpeta.innerHTML += `<option value="${c.id_db}">${c.nombre} (Saldo actual: Bs ${total})</option>`;
+            });
+
+            if(id) {
+                const p = window.partidos.find(x => x.id_db === id);
+                document.getElementById('mp-titulo-modal').innerText = "Editar Partido";
+                document.getElementById('mp-id').value = p.id_db;
+                document.getElementById('mp-titulo-input').value = p.titulo || '';
+                document.getElementById('mp-fecha').value = p.fecha;
+                document.getElementById('mp-rival').value = p.rival;
+                document.getElementById('mp-gf').value = p.gf;
+                document.getElementById('mp-gc').value = p.gc;
+                document.getElementById('mp-obs').value = p.obs || '';
+                if(p.carpetaId) document.getElementById('mp-carpeta').value = p.carpetaId;
+                
+                const contJugaron = document.getElementById('contenedor-jugaron');
+                contJugaron.innerHTML = '';
+                window.jugadores.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(j => {
+                    let n = j.apodo ? j.apodo : j.nombre.split(' ')[0];
+                    let checked = (p.jugadoresPagados && p.jugadoresPagados.includes(j.id_db)) ? 'checked' : '';
+                    contJugaron.innerHTML += `
+                        <label class="flex items-center gap-2 p-1 hover:bg-sky-50 rounded cursor-pointer">
+                            <input type="checkbox" class="chk-jugador" value="${j.id_db}" data-tarifa="${j.tarifa}" ${checked}>
+                            <span class="flex-1">${n}</span>
+                            <span class="text-[9px] text-green-600 font-bold bg-green-50 px-1 rounded">Bs ${j.tarifa}</span>
+                        </label>
+                    `;
+                });
+
+                const containerGol = document.getElementById('contenedor-goleadores');
+                containerGol.innerHTML = '';
+                if(p.goleadores && p.goleadores.length > 0) {
+                    p.goleadores.forEach(g => {
+                        window.agregarFilaGoleador(g.id_db, g.goles);
+                    });
+                }
+            } else {
+                document.getElementById('mp-titulo-modal').innerText = "Registrar Partido";
+                document.getElementById('mp-id').value = '';
+                document.getElementById('mp-titulo-input').value = '';
+                document.getElementById('mp-fecha').value = '';
+                document.getElementById('mp-rival').value = '';
+                document.getElementById('mp-gf').value = '0';
+                document.getElementById('mp-gc').value = '0';
+                document.getElementById('mp-obs').value = '';
+                document.getElementById('contenedor-goleadores').innerHTML = '';
+                
+                const contJugaron = document.getElementById('contenedor-jugaron');
+                contJugaron.innerHTML = '';
+                window.jugadores.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(j => {
+                    let n = j.apodo ? j.apodo : j.nombre.split(' ')[0];
+                    contJugaron.innerHTML += `
+                        <label class="flex items-center gap-2 p-1 hover:bg-sky-50 rounded cursor-pointer">
+                            <input type="checkbox" class="chk-jugador" value="${j.id_db}" data-tarifa="${j.tarifa}">
+                            <span class="flex-1">${n}</span>
+                            <span class="text-[9px] text-green-600 font-bold bg-green-50 px-1 rounded">Bs ${j.tarifa}</span>
+                        </label>
+                    `;
+                });
+            }
+            abrirModal('modal-partido');
+        }
+
+        window.agregarFilaGoleador = function(jugadorIdStr = "", golesVal = 1) {
+            const container = document.getElementById('contenedor-goleadores');
+            const filaId = Date.now().toString() + Math.floor(Math.random() * 1000);
+            let options = '<option value="">Selecciona al jugador...</option>';
+            window.jugadores.forEach(j => {
+                let displayNombre = j.nombre.split(' ')[0] + ' ' + (j.nombre.split(' ')[1] || '');
+                if(j.apodo) displayNombre += ` (${j.apodo})`;
+                let selected = (j.id_db === jugadorIdStr) ? 'selected' : '';
+                options += `<option value="${j.id_db}" ${selected}>${displayNombre}</option>`;
+            });
+            const div = document.createElement('div');
+            div.className = "flex gap-2 items-center mb-1";
+            div.id = `gol-${filaId}`;
+            div.innerHTML = `
+                <select class="sel-jugador flex-1 border-2 border-sky-100 p-1 rounded text-xs focus:border-sky-400">${options}</select>
+                <input type="number" class="inp-goles w-16 border-2 border-sky-100 p-1 rounded text-xs text-center" placeholder="Goles" min="1" value="${golesVal}">
+                <button type="button" onclick="document.getElementById('gol-${filaId}').remove()" class="text-red-400 hover:text-red-600 p-1"><i class="fa-solid fa-times"></i></button>
+            `;
+            container.appendChild(div);
+        }
+
+        window.guardarPartido = function() {
+            const id = document.getElementById('mp-id').value;
+            const titulo = document.getElementById('mp-titulo-input').value;
+            const fecha = document.getElementById('mp-fecha').value;
+            const rival = document.getElementById('mp-rival').value;
+            const gf = document.getElementById('mp-gf').value;
+            const gc = document.getElementById('mp-gc').value;
+            const obs = document.getElementById('mp-obs').value;
+            const carpetaId = document.getElementById('mp-carpeta').value;
+
+            if(!fecha || !rival) return alert("Pon fecha y rival.");
+
+            const goleadores = [];
+            document.querySelectorAll('#contenedor-goleadores .flex').forEach(fila => {
+                const jugId = fila.querySelector('.sel-jugador').value;
+                const goles = parseInt(fila.querySelector('.inp-goles').value);
+                if(jugId && goles > 0) {
+                    const jug = window.jugadores.find(j => j.id_db == jugId);
+                    let nombreMostrar = jug.apodo ? jug.apodo : jug.nombre.split(' ')[0];
+                    goleadores.push({ id_db: jugId, nombre: nombreMostrar, goles: goles });
+                }
+            });
+
+            let totalPagado = 0;
+            const jugadoresPagados = [];
+            document.querySelectorAll('.chk-jugador:checked').forEach(chk => {
+                let tarifa = parseFloat(chk.getAttribute('data-tarifa'));
+                totalPagado += tarifa;
+                jugadoresPagados.push(chk.value);
+            });
+
+            let carpetaNombre = null;
+            if (!id && carpetaId && totalPagado > 0) {
+                const carpeta = window.carpetasCaja.find(c => c.id_db === carpetaId);
+                if (carpeta) {
+                    carpetaNombre = carpeta.nombre;
+                    let nuevosAportes = [...(carpeta.aportes || [])];
+                    nuevosAportes.push({
+                        id: 'egr_' + Date.now(),
+                        tipo: 'egreso',
+                        dirigenteId: 'general',
+                        dirigenteNombre: 'Pago a Plantel (Automático)',
+                        monto: totalPagado,
+                        fecha: fecha,
+                        observacion: `Pago por partido vs ${rival}`
+                    });
+                    window.guardarYSubirCarpeta({ aportes: nuevosAportes }, carpetaId);
+                }
+            }
+
+            if(id && !carpetaNombre) {
+                const pViejo = window.partidos.find(x => x.id_db === id);
+                if(pViejo) {
+                    carpetaNombre = pViejo.carpetaPagoNombre;
+                }
+            }
+
+            const partidoData = { titulo, fecha, rival, gf, gc, obs, goleadores, totalPagado, jugadoresPagados, carpetaPagoNombre: carpetaNombre, carpetaId: carpetaId };
+            window.guardarYSubirPartido(partidoData, id ? id : null);
+            cerrarModal('modal-partido');
+        }
+
+        window.renderizarPartidos = function() {
+            const lista = document.getElementById('lista-partidos');
+            lista.innerHTML = '';
+            window.partidos.forEach(p => {
+                let colorClass = p.gf > p.gc ? 'border-green-500' : (p.gf < p.gc ? 'border-red-500' : 'border-yellow-500');
+                let resultado = p.gf > p.gc ? 'Victoria' : (p.gf < p.gc ? 'Derrota' : 'Empate');
+                let resColor = p.gf > p.gc ? 'text-green-600' : (p.gf < p.gc ? 'text-red-600' : 'text-yellow-600');
+                
+                let golesHtml = '';
+                if(p.goleadores && p.goleadores.length > 0) {
+                    let tags = p.goleadores.map(g => `<span class="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full text-[9px] mr-1 mb-1 inline-block"><i class="fa-solid fa-futbol mr-1 text-[8px]"></i>${g.nombre} (${g.goles})</span>`).join('');
+                    golesHtml = `<div class="mt-2 border-t border-gray-100 pt-2"><p class="text-[9px] text-gray-400 mb-1">Goleadores:</p>${tags}</div>`;
+                }
+                
+                let pagosHtml = '';
+                if(p.totalPagado !== undefined && p.totalPagado > 0) {
+                     pagosHtml = `<div class="mt-2 flex flex-col bg-red-50 p-2 rounded border border-red-100">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[9px] text-red-500 font-bold"><i class="fa-solid fa-money-bill-wave mr-1"></i>Pago de Jugadores</span>
+                            <span class="text-[10px] text-red-600 font-bold">- Bs ${p.totalPagado}</span>
+                        </div>
+                        ${p.carpetaPagoNombre ? `<span class="text-[8px] text-red-400 mt-1">Extraído de la caja: ${p.carpetaPagoNombre}</span>` : ''}
+                     </div>`;
+                }
+
+                lista.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 ${colorClass} hover:shadow-md transition relative">
+                        <div class="absolute top-2 right-2 flex gap-1 z-10">
+                            <!-- VISIBLE PARA TODOS -->
+                            <button onclick="window.descargarUnPartidoJPG('${p.id_db}')" class="text-sky-600 hover:text-sky-800 bg-sky-50 rounded p-1.5" title="Descargar JPG"><i class="fa-solid fa-image text-[10px]"></i></button>
+                            <button onclick="window.descargarUnPartidoPDF('${p.id_db}')" class="text-red-600 hover:text-red-800 bg-red-50 rounded p-1.5" title="Descargar PDF"><i class="fa-solid fa-file-pdf text-[10px]"></i></button>
+                            <!-- SOLO ADMIN -->
+                            <button onclick="abrirModalPartido('${p.id_db}')" class="admin-only text-sky-300 hover:text-sky-600 bg-sky-50 rounded p-1.5"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                            <button onclick="window.borrarRegistroLocal('partidos', '${p.id_db}')" class="admin-only text-red-300 hover:text-red-600 bg-red-50 rounded p-1.5"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        </div>
+                        <div class="flex justify-between items-start mb-2 pr-32">
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm uppercase">${p.titulo || 'Partido'}</h4>
+                                <p class="text-xs text-gray-400 mt-1"><i class="fa-regular fa-calendar mr-1 text-sky-400"></i>${p.fecha} | vs ${p.rival}</p>
+                            </div>
+                            <span class="text-[10px] uppercase font-bold px-2 py-1 rounded bg-gray-50 ${resColor} border border-gray-100">${resultado}</span>
+                        </div>
+                        <div class="flex justify-center items-center gap-4 my-2 bg-sky-50 py-2 rounded-lg border border-sky-100">
+                            <div class="text-center"><p class="text-[10px] text-sky-600 font-bold">RACING</p><p class="text-2xl font-black text-gray-800 leading-none mt-1">${p.gf}</p></div>
+                            <div class="text-sky-300 font-bold text-xl">-</div>
+                            <div class="text-center"><p class="text-[10px] text-gray-500 uppercase overflow-hidden whitespace-nowrap w-16 text-ellipsis">${p.rival}</p><p class="text-2xl font-black text-gray-800 leading-none mt-1">${p.gc}</p></div>
+                        </div>
+                        ${golesHtml}${pagosHtml}
+                        ${p.obs ? `<p class="text-[10px] text-gray-500 bg-gray-50 p-2 rounded italic mt-2 border border-gray-100">Obs: ${p.obs}</p>` : ''}
+                    </div>`;
+            });
+        }
+
+        // --- PWA SERVICE WORKER REGISTRATION CON DESTRUCTOR DE CACHÉ ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                alert("¡Actualización completada! El sistema se recargará ahora para que todos vean los cambios.");
+                                window.location.reload();
+                            }
+                        };
+                    };
+                }).catch(err => console.log('SW error:', err));
+            });
+        }
+    </script>
+</body>
+</html>
