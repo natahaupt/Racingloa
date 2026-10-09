@@ -7,10 +7,10 @@
   "theme_color": "#0ea5e9",
   "icons": [
     {
-      "src": "logoracingloa.png",
+      "src": "icono_app.png",
       "sizes": "192x192 512x512",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any maskable"
     }
   ]
 }
