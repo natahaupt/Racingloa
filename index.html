@@ -160,32 +160,56 @@
             try { await window.deleteDoc(doc(db, coleccion, id_db)); } catch(e) {}
         };
 
-        // --- LISTENERS EN TIEMPO REAL (Actualizados para no borrar datos si Firebase falla) ---
+        // --- LISTENERS EN TIEMPO REAL (Seguros: No borran lo local) ---
         onSnapshot(collection(db, "dirigentes"), (snapshot) => {
-            window.dirigentes = [];
-            snapshot.forEach((doc) => { window.dirigentes.push({ id_db: doc.id, ...doc.data() }); });
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") {
+                    let idx = window.dirigentes.findIndex(x => x.id_db === change.doc.id);
+                    if(idx > -1) window.dirigentes[idx] = { id_db: change.doc.id, ...change.doc.data() };
+                    else window.dirigentes.push({ id_db: change.doc.id, ...change.doc.data() });
+                }
+                if (change.type === "removed") window.dirigentes = window.dirigentes.filter(x => x.id_db !== change.doc.id);
+            });
             window.guardarDatosLocales();
             if(window.renderizarDirigentes) window.renderizarDirigentes();
         }, () => {});
 
         onSnapshot(collection(db, "jugadores"), (snapshot) => {
-            window.jugadores = [];
-            snapshot.forEach((doc) => { window.jugadores.push({ id_db: doc.id, ...doc.data() }); });
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") {
+                    let idx = window.jugadores.findIndex(x => x.id_db === change.doc.id);
+                    if(idx > -1) window.jugadores[idx] = { id_db: change.doc.id, ...change.doc.data() };
+                    else window.jugadores.push({ id_db: change.doc.id, ...change.doc.data() });
+                }
+                if (change.type === "removed") window.jugadores = window.jugadores.filter(x => x.id_db !== change.doc.id);
+            });
             window.guardarDatosLocales();
             if(window.renderizarJugadores) window.renderizarJugadores();
         }, () => {});
 
         onSnapshot(collection(db, "carpetasCaja"), (snapshot) => {
-            window.carpetasCaja = [];
-            snapshot.forEach((doc) => { window.carpetasCaja.push({ id_db: doc.id, ...doc.data() }); });
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") {
+                    let idx = window.carpetasCaja.findIndex(x => x.id_db === change.doc.id);
+                    if(idx > -1) window.carpetasCaja[idx] = { id_db: change.doc.id, ...change.doc.data() };
+                    else window.carpetasCaja.push({ id_db: change.doc.id, ...change.doc.data() });
+                }
+                if (change.type === "removed") window.carpetasCaja = window.carpetasCaja.filter(x => x.id_db !== change.doc.id);
+            });
             window.guardarDatosLocales();
             if(window.renderizarCarpetasCaja) window.renderizarCarpetasCaja();
             if(window.carpetaActivaId && window.actualizarDetalleCarpeta) window.actualizarDetalleCarpeta();
         }, () => {});
 
         onSnapshot(collection(db, "partidos"), (snapshot) => {
-            window.partidos = [];
-            snapshot.forEach((doc) => { window.partidos.push({ id_db: doc.id, ...doc.data() }); });
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") {
+                    let idx = window.partidos.findIndex(x => x.id_db === change.doc.id);
+                    if(idx > -1) window.partidos[idx] = { id_db: change.doc.id, ...change.doc.data() };
+                    else window.partidos.push({ id_db: change.doc.id, ...change.doc.data() });
+                }
+                if (change.type === "removed") window.partidos = window.partidos.filter(x => x.id_db !== change.doc.id);
+            });
             window.partidos.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
             window.guardarDatosLocales();
             if(window.renderizarPartidos) window.renderizarPartidos();
