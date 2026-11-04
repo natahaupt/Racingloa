@@ -35,37 +35,10 @@
         const db = getFirestore(app);
         window.db = db; window.setDoc = setDoc; window.doc = doc; window.deleteDoc = deleteDoc;
 
-        // --- DATOS BASE INICIALES ---
-        const jugadoresDefecto = [
-            { id_db: 'j1', nombre: 'Marcelo Alberto Medina', apodo: 'Chelo', posicion: 'Arquero', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j2', nombre: 'Jugador no identificado', apodo: 'Chila Jose', posicion: 'Zaguero', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j3', nombre: 'Daniel Maseli', apodo: 'Daniel', posicion: 'Zaguero', tarifa: 100, observacion: '', foto: null },
-            { id_db: 'j4', nombre: 'Harold Blanco Guayhua', apodo: 'Harold', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
-            { id_db: 'j5', nombre: 'Jose Ronald Mamani Nina', apodo: 'Ronald', posicion: 'Medio Campo', tarifa: 100, observacion: '', foto: null },
-            { id_db: 'j6', nombre: 'Nelson Jesus Mamani Alvarez', apodo: 'Nelson', posicion: 'Medio Campo', tarifa: 250, observacion: '', foto: null },
-            { id_db: 'j7', nombre: 'Froilan Felix Espejo Canaza', apodo: 'Froy', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j8', nombre: 'Frank Kevin Perez Apaza', apodo: 'Chiqui', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j9', nombre: 'Cristhian Daniel Maydana Tinta', apodo: 'Cristian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j10', nombre: 'Adrian', apodo: 'Adrian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j11', nombre: 'Roberto Carlos Macuchapi Laura', apodo: 'Sub 20 1', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
-            { id_db: 'j12', nombre: 'Luis Fernando Villalobos Mamani', apodo: 'Sub 20 2', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
-            { id_db: 'j13', nombre: 'Milton Limachi Surco', apodo: 'Milton', posicion: 'Comodín', tarifa: 0, observacion: '', foto: null }
-        ];
-
-        const dirigentesDefecto = [
-            { id_db: 'd1', nombre: 'Bernardo Maidana', foto: null }, { id_db: 'd2', nombre: 'Felipe Choque', foto: null },
-            { id_db: 'd3', nombre: 'Félix Limachi', foto: null }, { id_db: 'd4', nombre: 'Roberto Ceballos', foto: null },
-            { id_db: 'd5', nombre: 'René Ceballos', foto: null }, { id_db: 'd6', nombre: 'Ernesto Ceballos', foto: null },
-            { id_db: 'd7', nombre: 'Víctor Maidana', foto: null }
-        ];
-
-        let lj = localStorage.getItem('rl_jugadores'); window.jugadores = lj ? JSON.parse(lj) : jugadoresDefecto;
-        let ld = localStorage.getItem('rl_dirigentes'); window.dirigentes = ld ? JSON.parse(ld) : dirigentesDefecto;
+        let lj = localStorage.getItem('rl_jugadores'); window.jugadores = lj ? JSON.parse(lj) : [];
+        let ld = localStorage.getItem('rl_dirigentes'); window.dirigentes = ld ? JSON.parse(ld) : [];
         let lc = localStorage.getItem('rl_carpetas'); window.carpetasCaja = lc ? JSON.parse(lc) : [];
         let lp = localStorage.getItem('rl_partidos'); window.partidos = lp ? JSON.parse(lp) : [];
-
-        if(!window.jugadores || window.jugadores.length === 0) window.jugadores = [...jugadoresDefecto];
-        if(!window.dirigentes || window.dirigentes.length === 0) window.dirigentes = [...dirigentesDefecto];
 
         window.carpetaActivaId = null;
 
@@ -637,7 +610,7 @@
         }
 
         // ==========================================
-        // PARTIDOS Y REPORTES OFICIALES (PDF CARTA & JPG 9:16)
+        // PARTIDOS Y REPORTES PROFESIONALES ORDENADOS
         // ==========================================
         window.guardarPartido = function() {
             const id = document.getElementById('mp-id').value;
@@ -694,7 +667,7 @@
                     golesHtml = `<div class="mt-2 border-t pt-2">${tags}</div>`;
                 }
 
-                lista.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border-l-4 ${colorClass} relative"><div class="absolute top-2 right-2 flex gap-1 z-10"><button onclick="window.descargarUnPartidoJPG('${p.id_db}')" class="text-sky-600 bg-sky-50 rounded p-1.5"><i class="fa-solid fa-image text-[10px]"></i></button><button onclick="window.descargarUnPartidoPDF('${p.id_db}')" class="text-red-600 bg-red-50 rounded p-1.5"><i class="fa-solid fa-file-pdf text-[10px]"></i></button><button onclick="abrirModalPartido('${p.id_db}')" class="admin-only text-sky-300 bg-sky-50 rounded p-1.5"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="window.borrarRegistroLocal('partidos', '${p.id_db}')" class="admin-only text-red-300 bg-red-50 rounded p-1.5"><i class="fa-solid fa-trash text-[10px]"></i></button></div><h4 class="font-bold text-gray-800 text-sm uppercase">${p.titulo || 'Partido'}</h4><p class="text-xs text-gray-400 mt-1">${p.fecha} | vs ${p.rival}</p><div class="flex justify-center items-center gap-4 my-2 bg-sky-50 py-2 rounded-lg"><div class="text-center"><p class="text-[10px] text-sky-600 font-bold">RACING</p><p class="text-2xl font-black">${p.gf}</p></div><div class="font-bold">-</div><div class="text-center"><p class="text-[10px] text-gray-500">${p.rival}</p><p class="text-2xl font-black">${p.gc}</p></div></div>${golesHtml}</div>`;
+                lista.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border-l-4 ${colorClass} relative"><div class="absolute top-2 right-2 flex gap-1 z-10"><button onclick="window.descargarUnPartidoJPG('${p.id_db}')" class="text-sky-600 bg-sky-50 rounded p-1.5" title="Descargar JPG 9:16"><i class="fa-solid fa-image text-[10px]"></i></button><button onclick="window.descargarUnPartidoPDF('${p.id_db}')" class="text-red-600 bg-red-50 rounded p-1.5" title="Descargar PDF Carta"><i class="fa-solid fa-file-pdf text-[10px]"></i></button><button onclick="abrirModalPartido('${p.id_db}')" class="admin-only text-sky-300 bg-sky-50 rounded p-1.5"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="window.borrarRegistroLocal('partidos', '${p.id_db}')" class="admin-only text-red-300 bg-red-50 rounded p-1.5"><i class="fa-solid fa-trash text-[10px]"></i></button></div><h4 class="font-bold text-gray-800 text-sm uppercase">${p.titulo || 'Partido'}</h4><p class="text-xs text-gray-400 mt-1">${p.fecha} | vs ${p.rival}</p><div class="flex justify-center items-center gap-4 my-2 bg-sky-50 py-2 rounded-lg"><div class="text-center"><p class="text-[10px] text-sky-600 font-bold">RACING</p><p class="text-2xl font-black">${p.gf}</p></div><div class="font-bold">-</div><div class="text-center"><p class="text-[10px] text-gray-500">${p.rival}</p><p class="text-2xl font-black">${p.gc}</p></div></div>${golesHtml}</div>`;
             });
             if(window.actualizarSelectPagos) window.actualizarSelectPagos();
         }
@@ -757,33 +730,32 @@
             container.innerHTML += `<div class="flex gap-2 items-center mb-1" id="gol-${filaId}"><select class="sel-jugador flex-1 border p-1 rounded text-xs">${options}</select><input type="number" class="inp-goles w-16 border p-1 rounded text-xs text-center" value="${golesVal}" min="1"><button type="button" onclick="document.getElementById('gol-${filaId}').remove()" class="text-red-400 p-1"><i class="fa-solid fa-times"></i></button></div>`;
         }
 
-        // --- PDF CARTA CON MÁRGENES DE 2 CM Y LOGOTIPO ---
+        // --- PDF CARTA CON MÁRGENES DE 2 CM, LOGO Y TABLAS ORDENADAS ---
         window.descargarUnPartidoPDF = function(id_db) {
             const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'letter'); // Tamaño Carta (215.9 x 279.4 mm)
+            const doc = new jsPDF('p', 'mm', 'letter'); // Tamaño Carta
             
-            // Márgenes de 2 cm (20 mm)
-            const margen = 20;
+            const margen = 20; // 2 cm de margen
             let currentY = margen;
 
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(20);
+            doc.setFontSize(18);
             doc.setTextColor(14, 165, 233);
-            doc.text("CLUB RACING LOA", margen, currentY + 5);
+            doc.text("CLUB RACING LOA", margen, currentY + 4);
             
-            doc.setFontSize(10);
+            doc.setFontSize(9);
             doc.setTextColor(107, 114, 128);
-            doc.text(`Fecha de emisión: ${new Date().toLocaleDateString()}`, 215.9 - margen, currentY + 5, { align: 'right' });
+            doc.text(`Emisión: ${new Date().toLocaleDateString()}`, 215.9 - margen, currentY + 4, { align: 'right' });
             
-            currentY += 15;
-            doc.setFontSize(14);
+            currentY += 12;
+            doc.setFontSize(13);
             doc.setTextColor(31, 41, 55);
-            doc.text(`Resumen del Encuentro: vs ${p.rival.toUpperCase()}`, margen, currentY);
+            doc.text(`Resumen de Encuentro: vs ${p.rival.toUpperCase()}`, margen, currentY);
             
-            currentY += 8;
+            currentY += 6;
             doc.setFontSize(10);
-            doc.text(`Fecha del Partido: ${p.fecha}  |  Resultado: Racing ${p.gf} - ${p.gc} ${p.rival}`, margen, currentY);
+            doc.text(`Fecha: ${p.fecha}  |  Resultado: Racing ${p.gf} - ${p.gc} ${p.rival}`, margen, currentY);
 
             let gs = p.goleadores && p.goleadores.length > 0 ? p.goleadores.map(g => `${g.nombre} (${g.goles})`).join(', ') : 'Ninguno';
             currentY += 6;
@@ -792,58 +764,89 @@
 
             currentY += 10;
 
-            // Tabla 1: Asistencia y Jugadores Pagados
-            let filasAsistencia = [];
+            // Procesar y ordenar asistencias: 1) QR, 2) Efectivo, 3) No cobra
+            let listaAsistentes = [];
             (p.asistencia || []).forEach(a => {
                 if(a.asistio) {
                     let j = window.jugadores.find(x => x.id_db === a.id_db);
                     if(j) {
-                        let cNombre = 'Caja General';
-                        if(a.carpetaFuenteId) {
+                        let estadoTxt = '';
+                        let ordenPrioridad = 3;
+                        if(j.tarifa === 0) {
+                            estadoTxt = 'Asistió (No cobra)';
+                            ordenPrioridad = 3;
+                        } else if(a.pagado) {
+                            estadoTxt = `Pagado (${a.metodo === 'qr' ? 'QR' : 'Efectivo'})`;
+                            ordenPrioridad = a.metodo === 'qr' ? 1 : 2;
+                        } else {
+                            estadoTxt = 'Pendiente';
+                            ordenPrioridad = 4;
+                        }
+
+                        let cNombre = '-';
+                        if(a.pagado && a.carpetaFuenteId) {
                             let c = window.carpetasCaja.find(x => x.id_db === a.carpetaFuenteId);
                             if(c) cNombre = c.nombre;
                         }
-                        filasAsistencia.push([j.nombre, a.pagado ? `Pagado (${a.metodo || 'efectivo'})` : 'Pendiente', cNombre, `Bs ${j.tarifa}`]);
+
+                        listaAsistentes.push({
+                            prioridad: ordenPrioridad,
+                            nombre: j.nombre,
+                            estado: estadoTxt,
+                            caja: cNombre,
+                            tarifa: j.tarifa
+                        });
                     }
                 }
             });
 
+            // Ordenar por prioridad (QR -> Efectivo -> No cobra)
+            listaAsistentes.sort((a, b) => a.prioridad - b.prioridad);
+
+            let filasAsistencia = listaAsistentes.map(item => [item.nombre, item.estado, item.caja, `Bs ${item.tarifa}`]);
+
             if(filasAsistencia.length > 0) {
+                doc.setFontSize(11);
+                doc.setTextColor(14, 165, 233);
+                doc.text("1. Detalle de Asistencia y Pagos a Jugadores", margen, currentY);
+                currentY += 4;
+
                 doc.autoTable({
                     startY: currentY,
                     margin: { left: margen, right: margen },
-                    head: [['Jugador', 'Estado de Pago', 'Descontado de la Caja', 'Tarifa']],
+                    head: [['Jugador', 'Estado / Método', 'Descontado de la Caja', 'Tarifa']],
                     body: filasAsistencia,
                     theme: 'striped',
                     headStyles: { fillColor: [14, 165, 233] },
-                    styles: { fontSize: 9, cellPadding: 5 }
+                    styles: { fontSize: 8.5, cellPadding: 4 }
                 });
-                currentY = doc.lastAutoTable.finalY + 15;
+                currentY = doc.lastAutoTable.finalY + 12;
             }
 
-            // Tabla 2: Resumen general de la caja vinculada (sin duplicar nombres individualmente)
+            // Resumen de Caja Vinculada
             if(p.carpetaId) {
                 let caja = window.carpetasCaja.find(c => c.id_db === p.carpetaId);
                 if(caja) {
                     let totalCaja = caja.aportes ? caja.aportes.reduce((s, a) => a.tipo === 'egreso' ? s - a.monto : (a.tipo === 'pendiente' ? s : s + a.monto), 0) : 0;
-                    doc.setFontSize(12);
-                    doc.setTextColor(31, 41, 55);
-                    doc.text(`Caja Vinculada: ${caja.nombre} (Total General: Bs ${totalCaja})`, margen, currentY);
+                    doc.setFontSize(11);
+                    doc.setTextColor(16, 185, 129);
+                    doc.text(`2. Resumen General de Caja Vinculada: ${caja.nombre} (Saldo Actual: Bs ${totalCaja})`, margen, currentY);
+                    currentY += 4;
                     
                     let filasCaja = [];
                     (caja.aportes || []).forEach(ap => {
-                        filasCaja.push([ap.fecha, ap.dirigenteNombre, ap.observacion || '-', `Bs ${ap.monto}`]);
+                        filasCaja.push([ap.fecha, ap.dirigenteNombre, ap.tipo.toUpperCase(), ap.observacion || '-', `Bs ${ap.monto}`]);
                     });
 
                     if(filasCaja.length > 0) {
                         doc.autoTable({
-                            startY: currentY + 5,
+                            startY: currentY,
                             margin: { left: margen, right: margen },
-                            head: [['Fecha', 'Responsable', 'Detalle General / Aporte', 'Monto']],
+                            head: [['Fecha', 'Responsable', 'Tipo', 'Detalle General', 'Monto']],
                             body: filasCaja,
                             theme: 'striped',
                             headStyles: { fillColor: [16, 185, 129] },
-                            styles: { fontSize: 9, cellPadding: 5 }
+                            styles: { fontSize: 8.5, cellPadding: 4 }
                         });
                     }
                 }
@@ -852,23 +855,49 @@
             doc.save(`Resumen_Partido_${p.rival}.pdf`);
         }
 
-        // --- JPG VERTICAL EN PROPORCIÓN 9:16 (Optimizado para Celular / WhatsApp) ---
+        // --- JPG VERTICAL EN PROPORCIÓN 9:16 (Optimizado para WhatsApp) ---
         window.descargarUnPartidoJPG = function(id_db) {
             const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
             
-            let filas = '';
+            let listaAsistentes = [];
             (p.asistencia || []).forEach(a => {
                 if(a.asistio) {
                     let j = window.jugadores.find(x => x.id_db === a.id_db);
                     if(j) {
-                        let cNombre = 'Caja General';
-                        if(a.carpetaFuenteId) {
+                        let estadoTxt = '';
+                        let ordenPrioridad = 3;
+                        if(j.tarifa === 0) {
+                            estadoTxt = 'Asistió (No cobra)';
+                            ordenPrioridad = 3;
+                        } else if(a.pagado) {
+                            estadoTxt = `Pagado (${a.metodo === 'qr' ? 'QR' : 'Efectivo'})`;
+                            ordenPrioridad = a.metodo === 'qr' ? 1 : 2;
+                        } else {
+                            estadoTxt = 'Pendiente';
+                            ordenPrioridad = 4;
+                        }
+
+                        let cNombre = '-';
+                        if(a.pagado && a.carpetaFuenteId) {
                             let c = window.carpetasCaja.find(x => x.id_db === a.carpetaFuenteId);
                             if(c) cNombre = c.nombre;
                         }
-                        filas += `<tr><td style="padding:10px; border-bottom:1px solid #eee;">${j.nombre}</td><td style="padding:10px; border-bottom:1px solid #eee;">${a.pagado ? 'Pagado' : 'Pendiente'}</td><td style="padding:10px; border-bottom:1px solid #eee;">${cNombre}</td><td style="padding:10px; border-bottom:1px solid #eee; text-align:right; font-weight:bold;">Bs ${j.tarifa}</td></tr>`;
+
+                        listaAsistentes.push({
+                            prioridad: ordenPrioridad,
+                            nombre: j.nombre,
+                            estado: estadoTxt,
+                            caja: cNombre,
+                            tarifa: j.tarifa
+                        });
                     }
                 }
+            });
+            listaAsistentes.sort((a, b) => a.prioridad - b.prioridad);
+
+            let filas = '';
+            listaAsistentes.forEach(item => {
+                filas += `<tr><td style="padding:12px; border-bottom:1px solid #eee;">${item.nombre}</td><td style="padding:12px; border-bottom:1px solid #eee;">${item.estado}</td><td style="padding:12px; border-bottom:1px solid #eee;">${item.caja}</td><td style="padding:12px; border-bottom:1px solid #eee; text-align:right; font-weight:bold;">Bs ${item.tarifa}</td></tr>`;
             });
 
             let d = document.createElement('div');
