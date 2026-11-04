@@ -39,12 +39,42 @@
         window.doc = doc;
         window.deleteDoc = deleteDoc;
 
-        // --- SISTEMA DE GUARDADO LOCAL ---
-        const jugadoresDefecto = []; const dirigentesDefecto = []; const carpetasDefecto = [];
+        // --- SISTEMA DE GUARDADO LOCAL RESTAURADO (TUS DATOS BASE) ---
+        const jugadoresDefecto = [
+            { id_db: 'j1', nombre: 'Marcelo Alberto Medina', apodo: 'Chelo', posicion: 'Arquero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j2', nombre: 'Jugador no identificado', apodo: 'Chila Jose', posicion: 'Zaguero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j3', nombre: 'Daniel Maseli', apodo: 'Daniel', posicion: 'Zaguero', tarifa: 100, observacion: '', foto: null },
+            { id_db: 'j4', nombre: 'Harold Blanco Guayhua', apodo: 'Harold', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j5', nombre: 'Jose Ronald Mamani Nina', apodo: 'Ronald', posicion: 'Medio Campo', tarifa: 100, observacion: '', foto: null },
+            { id_db: 'j6', nombre: 'Nelson Jesus Mamani Alvarez', apodo: 'Nelson', posicion: 'Medio Campo', tarifa: 250, observacion: '', foto: null },
+            { id_db: 'j7', nombre: 'Froilan Felix Espejo Canaza', apodo: 'Froy', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j8', nombre: 'Frank Kevin Perez Apaza', apodo: 'Chiqui', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j9', nombre: 'Cristhian Daniel Maydana Tinta', apodo: 'Cristian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j10', nombre: 'Adrian', apodo: 'Adrian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j11', nombre: 'Roberto Carlos Macuchapi Laura', apodo: 'Sub 20 1', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j12', nombre: 'Luis Fernando Villalobos Mamani', apodo: 'Sub 20 2', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j13', nombre: 'Milton Limachi Surco', apodo: 'Milton', posicion: 'Comodín', tarifa: 0, observacion: '', foto: null }
+        ];
+
+        const dirigentesDefecto = [
+            { id_db: 'd1', nombre: 'Bernardo Maidana', foto: null }, { id_db: 'd2', nombre: 'Felipe Choque', foto: null },
+            { id_db: 'd3', nombre: 'Félix Limachi', foto: null }, { id_db: 'd4', nombre: 'Roberto Ceballos', foto: null },
+            { id_db: 'd5', nombre: 'René Ceballos', foto: null }, { id_db: 'd6', nombre: 'Ernesto Ceballos', foto: null },
+            { id_db: 'd7', nombre: 'Víctor Maidana', foto: null }
+        ];
+
+        const carpetasDefecto = [
+            { id_db: 'c1', nombre: 'Cuotas Primer Partido', aportes: [] }
+        ];
+
         let lj = localStorage.getItem('rl_jugadores'); window.jugadores = lj ? JSON.parse(lj) : jugadoresDefecto;
         let ld = localStorage.getItem('rl_dirigentes'); window.dirigentes = ld ? JSON.parse(ld) : dirigentesDefecto;
         let lc = localStorage.getItem('rl_carpetas'); window.carpetasCaja = lc ? JSON.parse(lc) : carpetasDefecto;
         let lp = localStorage.getItem('rl_partidos'); window.partidos = lp ? JSON.parse(lp) : [];
+
+        if(window.dirigentes.length === 0) window.dirigentes = [...dirigentesDefecto];
+        if(window.jugadores.length === 0) window.jugadores = [...jugadoresDefecto];
+        if(window.carpetasCaja.length === 0) window.carpetasCaja = [...carpetasDefecto];
 
         window.carpetaActivaId = null;
 
@@ -405,7 +435,7 @@
         // LÓGICA DE PAGOS: 2 COLUMNAS Y EDICIÓN
         // ==========================================
         
-        window.asistenciaEdicion = []; // Estado en memoria
+        window.asistenciaEdicion = []; 
 
         window.actualizarSelectPagos = function() {
             const sel = document.getElementById('sel-partido-pagos'); const actualVal = sel.value;
@@ -449,8 +479,6 @@
 
             window.jugadores.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(j => {
                 let asist = window.asistenciaEdicion.find(a => a.id_db === j.id_db);
-                
-                // NO APARECE SI NO ESTÁ MARCADO COMO QUE ASISTIÓ EN LA PESTAÑA PARTIDOS
                 if(!asist || !asist.asistio) return; 
 
                 let nombreDisplay = j.apodo || j.nombre.split(' ')[0];
@@ -531,7 +559,6 @@
             let carpetasModificadas = new Set();
             let totalPagadoReal = 0;
 
-            // 1. Limpiar todos los egresos de este partido de TODAS las cajas (Evita duplicados)
             window.carpetasCaja.forEach(c => {
                 if(c.aportes) {
                     let lenOriginal = c.aportes.length;
@@ -540,7 +567,6 @@
                 }
             });
 
-            // 2. Registrar los nuevos pagos en las cajas correspondientes
             window.asistenciaEdicion.forEach(a => {
                 if(a.asistio && a.pagado) {
                     const j = window.jugadores.find(x => x.id_db === a.id_db);
@@ -562,13 +588,11 @@
                 }
             });
 
-            // 3. Subir las cajas afectadas
             carpetasModificadas.forEach(idCaja => {
                 const cData = window.carpetasCaja.find(c => c.id_db === idCaja);
                 window.guardarYSubirCarpeta({ aportes: cData.aportes }, idCaja);
             });
 
-            // 4. Subir el partido
             const partidoActualizado = {
                 asistencia: window.asistenciaEdicion,
                 totalPagado: totalPagadoReal,
@@ -908,7 +932,7 @@
             }, 500);
         }
 
-        // --- REPORTES DE PARTIDOS (Mantenidos igual pero con la misma función de Canvas) ---
+        // --- REPORTES DE PARTIDOS ---
         window.descargarUnPartidoJPG = function(id_db) {
             const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
             let gs = p.goleadores && p.goleadores.length > 0 ? p.goleadores.map(g => `${g.nombre} (${g.goles})`).join(', ') : 'Ninguno';
@@ -937,7 +961,6 @@
             doc.autoTable({ startY: 95, head: [['Fecha', 'Rival', 'Resultado', 'Gasto Plantel']], body: rows, theme: 'striped', headStyles: { fillColor: [14, 165, 233] } });
             doc.save(`Partidos_Historial.pdf`); event.currentTarget.innerHTML = btnOriginal;
         }
-
     </script>
 </body>
 </html>
