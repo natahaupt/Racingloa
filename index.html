@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Racing Loa - Admin</title>
+    
+    <!-- PWA Config -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0ea5e9">
+    <link rel="apple-touch-icon" href="icono_app.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Librerías para reportes (Páginas Automáticas y Canvas Largo) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- FIREBASE SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBdsAQZbCzuM9xEVLF8zr9IlgH2vj0eIHc",
+            authDomain: "racing-loa.firebaseapp.com",
+            projectId: "racing-loa",
+            storageBucket: "racing-loa.firebasestorage.app",
+            messagingSenderId: "657974340000",
+            appId: "1:657974340000:web:c5c46d64ef6dcc7f9d9cc5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        window.db = db;
+        window.setDoc = setDoc;
+        window.doc = doc;
+        window.deleteDoc = deleteDoc;
+
+        // --- DATOS POR DEFECTO ---
+        const jugadoresDefecto = [
+            { id_db: 'j1', nombre: 'Marcelo Alberto Medina', apodo: 'Chelo', posicion: 'Arquero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j2', nombre: 'Jugador no identificado', apodo: 'Chila Jose', posicion: 'Zaguero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j3', nombre: 'Daniel Maseli', apodo: 'Daniel', posicion: 'Zaguero', tarifa: 100, observacion: '', foto: null },
+            { id_db: 'j4', nombre: 'Harold Blanco Guayhua', apodo: 'Harold', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j5', nombre: 'Jose Ronald Mamani Nina', apodo: 'Ronald', posicion: 'Medio Campo', tarifa: 100, observacion: '', foto: null },
+            { id_db: 'j6', nombre: 'Nelson Jesus Mamani Alvarez', apodo: 'Nelson', posicion: 'Medio Campo', tarifa: 250, observacion: '', foto: null },
+            { id_db: 'j7', nombre: 'Froilan Felix Espejo Canaza', apodo: 'Froy', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j8', nombre: 'Frank Kevin Perez Apaza', apodo: 'Chiqui', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j9', nombre: 'Cristhian Daniel Maydana Tinta', apodo: 'Cristian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j10', nombre: 'Adrian', apodo: 'Adrian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
+            { id_db: 'j11', nombre: 'Roberto Carlos Macuchapi Laura', apodo: 'Sub 20 1', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j12', nombre: 'Luis Fernando Villalobos Mamani', apodo: 'Sub 20 2', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
+            { id_db: 'j13', nombre: 'Milton Limachi Surco', apodo: 'Milton', posicion: 'Comodín', tarifa: 0, observacion: '', foto: null }
+        ];
+
+        const dirigentesDefecto = [
+            { id_db: 'd1', nombre: 'Bernardo Maidana', foto: null }, { id_db: 'd2', nombre: 'Felipe Choque', foto: null },
+            { id_db: 'd3', nombre: 'Félix Limachi', foto: null }, { id_db: 'd4', nombre: 'Roberto Ceballos', foto: null },
+            { id_db: 'd5', nombre: 'René Ceballos', foto: null }, { id_db: 'd6', nombre: 'Ernesto Ceballos', foto: null },
+            { id_db: 'd7', nombre: 'Víctor Maidana', foto: null }
+        ];
+
+        const carpetasDefecto = [
+            { id_db: 'c1', nombre: 'Cuotas Primer Partido', aportes: [] }
+        ];
+
+        let lj = localStorage.getItem('rl_jugadores'); window.jugadores = lj ? JSON.parse(lj) : jugadoresDefecto;
+        let ld = localStorage.getItem('rl_dirigentes'); window.dirigentes = ld ? JSON.parse(ld) : dirigentesDefecto;
+        let lc = localStorage.getItem('rl_carpetas'); window.carpetasCaja = lc ? JSON.parse(lc) : carpetasDefecto;
+        let lp = localStorage.getItem('rl_partidos'); window.partidos = lp ? JSON.parse(lp) : [];
+
+        if(!window.jugadores || window.jugadores.length === 0) window.jugadores = [...jugadoresDefecto];
+        if(!window.dirigentes || window.dirigentes.length === 0) window.dirigentes = [...dirigentesDefecto];
+        if(!window.carpetasCaja || window.carpetasCaja.length === 0) window.carpetasCaja = [...carpetasDefecto];
+
+        window.carpetaActivaId = null;
+
+        window.guardarDatosLocales = function() {
+            localStorage.setItem('rl_jugadores', JSON.stringify(window.jugadores));
+            localStorage.setItem('rl_dirigentes', JSON.stringify(window.dirigentes));
+            localStorage.setItem('rl_carpetas', JSON.stringify(window.carpetasCaja));
+            localStorage.setItem('rl_partidos', JSON.stringify(window.partidos));
+        };
+
+        window.sincronizarNube = function() {
+            if(!document.body.classList.contains('admin-mode')) return;
+            window.dirigentes.forEach(d => setDoc(doc(db, "dirigentes", d.id_db), d, {merge: true}).catch(e=>console.log(e)));
+            window.jugadores.forEach(j => setDoc(doc(db, "jugadores", j.id_db), j, {merge: true}).catch(e=>console.log(e)));
+            window.carpetasCaja.forEach(c => setDoc(doc(db, "carpetasCaja", c.id_db), c, {merge: true}).catch(e=>console.log(e)));
+            window.partidos.forEach(p => setDoc(doc(db, "partidos", p.id_db), p, {merge: true}).catch(e=>console.log(e)));
+        }
+
+        window.guardarYSubirJugador = async (datos, id_db = null) => {
+            const id = id_db || 'j_' + Date.now();
+            if(id_db) { const index = window.jugadores.findIndex(x => x.id_db === id); if(index > -1) window.jugadores[index] = { ...window.jugadores[index], ...datos }; } 
+            else { window.jugadores.push({ id_db: id, ...datos }); }
+            window.guardarDatosLocales(); if(window.renderizarJugadores) window.renderizarJugadores();
+            try { await setDoc(doc(db, "jugadores", id), datos, { merge: true }); } catch(e) {}
+        };
+
+        window.guardarYSubirDirigente = async (datos, id_db = null) => {
+            const id = id_db || 'd_' + Date.now();
+            if(id_db) { const index = window.dirigentes.findIndex(x => x.id_db === id); if(index > -1) window.dirigentes[index] = { ...window.dirigentes[index], ...datos }; } 
+            else { window.dirigentes.push({ id_db: id, ...datos }); }
+            window.guardarDatosLocales(); if(window.renderizarDirigentes) window.renderizarDirigentes();
+            try { await setDoc(doc(db, "dirigentes", id), datos, { merge: true }); } catch(e) {}
+        };
+
+        window.guardarYSubirCarpeta = async (datos, id_db = null) => {
+            const id = id_db || 'c_' + Date.now();
+            if(id_db) { const index = window.carpetasCaja.findIndex(x => x.id_db === id); if(index > -1) window.carpetasCaja[index] = { ...window.carpetasCaja[index], ...datos }; } 
+            else { window.carpetasCaja.push({ id_db: id, ...datos }); }
+            window.guardarDatosLocales(); if(window.renderizarCarpetasCaja) window.renderizarCarpetasCaja();
+            if(window.carpetaActivaId === id && window.actualizarDetalleCarpeta) window.actualizarDetalleCarpeta();
+            try { await setDoc(doc(db, "carpetasCaja", id), datos, { merge: true }); } catch(e) {}
+        };
+
+        window.guardarYSubirPartido = async (datos, id_db = null) => {
+            const id = id_db || 'p_' + Date.now();
+            if(id_db) { const index = window.partidos.findIndex(x => x.id_db === id); if(index > -1) window.partidos[index] = { ...window.partidos[index], ...datos }; } 
+            else { window.partidos.unshift({ id_db: id, ...datos }); }
+            window.guardarDatosLocales(); if(window.renderizarPartidos) window.renderizarPartidos();
+            try { await setDoc(doc(db, "partidos", id), datos, { merge: true }); } catch(e) {}
+        };
+
+        window.borrarRegistroLocal = async (coleccion, id_db) => {
+            if(coleccion === 'jugadores') window.jugadores = window.jugadores.filter(x => x.id_db !== id_db);
+            if(coleccion === 'dirigentes') window.dirigentes = window.dirigentes.filter(x => x.id_db !== id_db);
+            if(coleccion === 'carpetasCaja') window.carpetasCaja = window.carpetasCaja.filter(x => x.id_db !== id_db);
+            if(coleccion === 'partidos') window.partidos = window.partidos.filter(x => x.id_db !== id_db);
+            window.guardarDatosLocales(); 
+            if(coleccion === 'jugadores') window.renderizarJugadores();
+            if(coleccion === 'dirigentes') window.renderizarDirigentes();
+            if(coleccion === 'carpetasCaja') window.renderizarCarpetasCaja();
+            if(coleccion === 'partidos') window.renderizarPartidos();
+            try { await window.deleteDoc(doc(db, coleccion, id_db)); } catch(e) {}
+        };
+
+        // --- LISTENERS EN TIEMPO REAL ---
+        onSnapshot(collection(db, "dirigentes"), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") { let idx = window.dirigentes.findIndex(x => x.id_db === change.doc.id); if(idx > -1) window.dirigentes[idx] = { id_db: change.doc.id, ...change.doc.data() }; else window.dirigentes.push({ id_db: change.doc.id, ...change.doc.data() }); }
+                if (change.type === "removed") window.dirigentes = window.dirigentes.filter(x => x.id_db !== change.doc.id);
+            }); window.guardarDatosLocales(); if(window.renderizarDirigentes) window.renderizarDirigentes();
+        }, () => {});
+
+        onSnapshot(collection(db, "jugadores"), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") { let idx = window.jugadores.findIndex(x => x.id_db === change.doc.id); if(idx > -1) window.jugadores[idx] = { id_db: change.doc.id, ...change.doc.data() }; else window.jugadores.push({ id_db: change.doc.id, ...change.doc.data() }); }
+                if (change.type === "removed") window.jugadores = window.jugadores.filter(x => x.id_db !== change.doc.id);
+            }); window.guardarDatosLocales(); if(window.renderizarJugadores) window.renderizarJugadores();
+        }, () => {});
+
+        onSnapshot(collection(db, "carpetasCaja"), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") { let idx = window.carpetasCaja.findIndex(x => x.id_db === change.doc.id); if(idx > -1) window.carpetasCaja[idx] = { id_db: change.doc.id, ...change.doc.data() }; else window.carpetasCaja.push({ id_db: change.doc.id, ...change.doc.data() }); }
+                if (change.type === "removed") window.carpetasCaja = window.carpetasCaja.filter(x => x.id_db !== change.doc.id);
+            }); window.guardarDatosLocales(); if(window.renderizarCarpetasCaja) window.renderizarCarpetasCaja(); if(window.carpetaActivaId && window.actualizarDetalleCarpeta) window.actualizarDetalleCarpeta();
+        }, () => {});
+
+        onSnapshot(collection(db, "partidos"), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added" || change.type === "modified") { let idx = window.partidos.findIndex(x => x.id_db === change.doc.id); if(idx > -1) window.partidos[idx] = { id_db: change.doc.id, ...change.doc.data() }; else window.partidos.push({ id_db: change.doc.id, ...change.doc.data() }); }
+                if (change.type === "removed") window.partidos = window.partidos.filter(x => x.id_db !== change.doc.id);
+            }); window.partidos.sort((a,b) => new Date(b.fecha) - new Date(a.fecha)); window.guardarDatosLocales(); if(window.renderizarPartidos) window.renderizarPartidos();
+        }, () => {});
+    </script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; padding-bottom: 70px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .app-header { background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .vista-interna { display: none; }
+        .vista-interna.active { display: block; }
+        body:not(.admin-mode) .admin-only { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <header class="app-header text-white p-4 shadow-md fixed top-0 w-full z-20 flex justify-between items-center border-b-[3px] border-white">
+        <div class="flex items-center">
+            <div class="w-12 h-12 flex items-center justify-center mr-3">
+                <img src="logoracingloa.png" alt="Logo" class="w-full h-full object-contain rounded-xl shadow-sm" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fa-solid fa-shield-halved text-sky-500 text-3xl\'></i>';">
+            </div>
+            <h1 class="text-xl font-bold tracking-wider text-white drop-shadow-md">RACING LOA</h1>
+        </div>
+        <button onclick="loginAdmin()" id="admin-btn"><i class="fa-solid fa-lock text-xl hover:text-gray-200 transition"></i></button>
+    </header>
+
+    <div class="admin-only fixed top-[75px] w-full bg-green-500 text-white text-center text-[10px] py-1 font-bold z-10 shadow-sm uppercase tracking-widest flex justify-between px-4 items-center">
+        <span>Modo Administrador Activo</span>
+        <button onclick="loginAdmin()" class="bg-red-600 text-white px-2 py-0.5 rounded shadow hover:bg-red-700">Cerrar Sesión Admin</button>
+    </div>
+
+    <main class="mt-[110px] p-4 relative z-10">
+
+        <!-- CAJA -->
+        <section id="tab-caja" class="tab-content active">
+            <div id="vista-carpetas" class="vista-interna active">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">Caja General</h2>
+                    <button onclick="abrirModalCarpeta()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-semibold flex items-center"><i class="fa-solid fa-folder-plus mr-1"></i> Nueva Carpeta</button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-sky-500 mb-5">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Total en Caja</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-1" id="saldo-total-caja">Bs. 0.00</p>
+                </div>
+                <h3 class="text-sm font-bold text-gray-500 uppercase mb-3">Carpetas de Ingresos/Gastos</h3>
+                <div id="lista-carpetas" class="space-y-3"></div>
+            </div>
+
+            <div id="vista-detalle-carpeta" class="vista-interna">
+                <div class="flex items-center mb-4">
+                    <button onclick="volverCarpetas()" class="text-gray-500 mr-3 text-xl hover:text-sky-500"><i class="fa-solid fa-arrow-left"></i></button>
+                    <h2 class="text-xl font-bold text-gray-800 truncate pr-2" id="titulo-carpeta-detalle">Detalle</h2>
+                </div>
+                <div class="flex justify-between items-center mb-4 gap-2">
+                    <div class="bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-100 flex-1">
+                        <p class="text-[10px] text-gray-400 uppercase">Total Carpeta</p>
+                        <p class="font-bold text-sky-500" id="total-carpeta-detalle">Bs 0.00</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="flex flex-col gap-1">
+                            <button onclick="descargarReporteCarpetaJPG()" class="bg-white hover:bg-gray-50 text-sky-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-sky-100 text-center"><i class="fa-solid fa-image"></i> JPG</button>
+                            <button onclick="descargarReporteCarpetaPDF()" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-red-200 text-center"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        </div>
+                        <button onclick="abrirModalAporte()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 rounded-lg shadow-sm text-sm font-semibold text-center leading-tight"><i class="fa-solid fa-plus"></i><br><span class="text-[10px]">Movimiento</span></button>
+                    </div>
+                </div>
+                <div id="lista-aportes" class="space-y-3 bg-white rounded-xl p-2 shadow-sm border border-gray-100"></div>
+            </div>
+        </section>
+
+        <!-- PARTIDOS -->
+        <section id="tab-partidos" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Partidos</h2>
+                <div class="flex gap-2 items-center">
+                    <div class="flex flex-col gap-1">
+                        <button onclick="descargarReportePartidosJPG()" class="bg-white hover:bg-gray-50 text-sky-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-sky-100 text-center"><i class="fa-solid fa-image"></i> JPG</button>
+                        <button onclick="descargarReportePartidosPDF()" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-red-200 text-center"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                    </div>
+                    <button onclick="abrirModalPartido()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 h-full rounded-lg shadow-sm text-sm font-semibold"><i class="fa-solid fa-plus mr-1"></i> Añadir</button>
+                </div>
+            </div>
+            <div id="lista-partidos" class="space-y-4"></div>
+        </section>
+
+        <!-- PAGOS A JUGADORES -->
+        <section id="tab-pagos" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Pagos a Jugadores</h2>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border border-sky-100">
+                <label class="text-xs text-sky-600 font-bold mb-2 block"><i class="fa-solid fa-futbol mr-1"></i> Selecciona el Partido:</label>
+                <select id="sel-partido-pagos" onchange="cargarPagosPartido()" class="w-full border-2 border-sky-200 p-2 rounded focus:outline-none focus:border-sky-500 font-bold text-gray-700 bg-sky-50">
+                    <option value="">-- Selecciona un partido --</option>
+                </select>
+            </div>
+            
+            <div id="contenedor-pagos-partido" class="hidden">
+                <div class="bg-white p-3 rounded-xl shadow-sm mb-4 border border-gray-200 relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-2 relative z-10">
+                        <div>
+                            <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide" id="pagos-rival">vs Rival</h3>
+                            <p class="text-xs font-bold mt-1" id="pagos-resultado">Victoria 2 - 0</p>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="descargarReporteAsistenciaJPG()" class="bg-white text-sky-600 px-2 py-1 rounded shadow-sm border border-sky-100 text-[10px] font-bold hover:bg-sky-50"><i class="fa-solid fa-image"></i> JPG</button>
+                            <button onclick="descargarReporteAsistenciaPDF()" class="bg-white text-red-600 px-2 py-1 rounded shadow-sm border border-red-100 text-[10px] font-bold hover:bg-red-50"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center mt-3 pt-3 border-t border-gray-100 relative z-10">
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                            <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Presupuesto</p>
+                            <p class="text-sm font-black text-gray-800" id="pagos-calc-presupuesto">Bs 0</p>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded-lg border border-green-200">
+                            <p class="text-[9px] text-green-600 font-bold uppercase mb-1">Pagado</p>
+                            <p class="text-sm font-black text-green-700" id="pagos-calc-pagado">Bs 0</p>
+                        </div>
+                        <div class="bg-yellow-50 p-2 rounded-lg border border-yellow-200">
+                            <p class="text-[9px] text-yellow-600 font-bold uppercase mb-1">Pendiente</p>
+                            <p class="text-sm font-black text-yellow-700" id="pagos-calc-pendiente">Bs 0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center px-1">
+                    <h3 class="text-sm font-bold text-gray-600">Control Individual</h3>
+                </div>
+                
+                <div class="flex gap-2 items-start mt-2 pb-16">
+                    <div class="w-1/2 bg-yellow-50 rounded-xl p-1.5 border border-yellow-200">
+                        <h3 class="font-bold text-[10px] text-yellow-700 mb-2 text-center uppercase tracking-wide border-b border-yellow-200 pb-1">Faltan Pagar</h3>
+                        <div id="col-pendientes" class="space-y-1.5"></div>
+                    </div>
+                    <div class="w-1/2 bg-green-50 rounded-xl p-1.5 border border-green-200">
+                        <h3 class="font-bold text-[10px] text-green-700 mb-2 text-center uppercase tracking-wide border-b border-green-200 pb-1">Ya Pagados</h3>
+                        <div id="col-pagados" class="space-y-1.5"></div>
+                    </div>
+                </div>
+                
+                <div class="fixed bottom-[80px] left-0 w-full px-4 z-10 admin-only">
+                    <button onclick="guardarPagosPartido()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg flex items-center justify-center text-sm border-2 border-white transition-transform active:scale-95">
+                        <i class="fa-solid fa-floppy-disk mr-2 text-lg"></i> Actualizar Caja y Guardar
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- DIRIGENTES -->
+        <section id="tab-dirigentes" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Dirigentes</h2>
+                <button onclick="abrirModalDirigente()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-semibold"><i class="fa-solid fa-user-plus mr-1"></i> Agregar</button>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <ul id="lista-dirigentes" class="divide-y divide-gray-100"></ul>
+            </div>
+        </section>
+
+        <!-- JUGADORES -->
+        <section id="tab-jugadores" class="tab-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Plantel</h2>
+                <div class="flex gap-2 items-center">
+                    <div class="flex flex-col gap-1">
+                        <button onclick="descargarReporteJugadoresJPG()" class="bg-white hover:bg-gray-50 text-sky-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-sky-100 text-center"><i class="fa-solid fa-image"></i> JPG</button>
+                        <button onclick="descargarReporteJugadoresPDF()" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded shadow-sm text-[10px] font-bold border border-red-200 text-center"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                    </div>
+                    <button onclick="nuevoJugador()" class="admin-only bg-sky-500 hover:bg-sky-600 text-white px-3 py-2 h-full rounded-lg shadow-sm text-sm font-semibold"><i class="fa-solid fa-user-plus mr-1"></i> Agregar</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3" id="lista-jugadores"></div>
+        </section>
+
+    </main>
+
+    <!-- MODALES -->
+    <div id="modal-dirigente" class="modal p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5"><h3 class="text-lg font-bold mb-4 text-sky-600" id="md-titulo">Añadir Dirigente</h3><input type="hidden" id="md-id"><div class="space-y-3"><div><label class="text-xs text-gray-500">Nombre Completo</label><input type="text" id="md-nombre" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div></div><div class="flex justify-end gap-2 mt-5"><button onclick="cerrarModal('modal-dirigente')" class="px-4 py-2 text-gray-500">Cancelar</button><button onclick="guardarDirigente()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button></div></div></div>
+    <div id="modal-carpeta" class="modal p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5"><h3 class="text-lg font-bold mb-4 text-sky-600" id="mca-titulo">Nueva Carpeta</h3><input type="hidden" id="mca-id"><div class="space-y-3"><div><label class="text-xs text-gray-500">Nombre de la Carpeta</label><input type="text" id="mca-nombre" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div></div><div class="flex justify-end gap-2 mt-5"><button onclick="cerrarModal('modal-carpeta')" class="px-4 py-2 text-gray-500">Cancelar</button><button onclick="guardarCarpeta()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button></div></div></div>
+    <div id="modal-aporte" class="modal p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5"><h3 class="text-lg font-bold mb-4 text-sky-600" id="map-titulo">Nuevo Movimiento</h3><input type="hidden" id="map-aporte-id"><div class="space-y-3"><div class="bg-sky-50 p-2 rounded border border-sky-100"><label class="text-xs text-sky-700 font-bold block mb-1">¿Qué tipo de movimiento es?</label><select id="map-tipo" class="w-full border-2 border-sky-200 p-2 rounded focus:outline-none focus:border-sky-500 font-bold text-gray-700"><option value="ingreso" class="text-green-600">🟢 INGRESO (+ Entró dinero)</option><option value="egreso" class="text-red-600">🔴 EGRESO (- Se sacó dinero)</option><option value="pendiente" class="text-yellow-600">🟡 PENDIENTE (No canceló / Falta)</option></select></div><div><label class="text-xs text-gray-500">Dirigente/Responsable</label><select id="map-dirigente" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></select></div><div><label class="text-xs text-gray-500">Monto (Bs)</label><input type="number" id="map-monto" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div><div><label class="text-xs text-gray-500">Fecha</label><input type="date" id="map-fecha" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div><div><label class="text-xs text-gray-500">Observación</label><textarea id="map-obs" class="w-full border-2 border-sky-100 p-2 rounded text-sm focus:outline-none focus:border-sky-400" rows="2"></textarea></div></div><div class="flex justify-end gap-2 mt-5"><button onclick="cerrarModal('modal-aporte')" class="px-4 py-2 text-gray-500">Cancelar</button><button onclick="guardarAporte()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button></div></div></div>
+    
+    <div id="modal-partido" class="modal p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold mb-4 text-sky-600" id="mp-titulo-modal">Registrar Partido</h3>
+            <input type="hidden" id="mp-id">
+            <div class="space-y-3">
+                <div><label class="text-xs text-gray-500 font-bold text-sky-600">Título / Número de Partido</label><input type="text" id="mp-titulo-input" class="w-full border-2 border-sky-200 p-2 rounded focus:outline-none focus:border-sky-500 font-bold"></div>
+                <div><label class="text-xs text-gray-500">Fecha</label><input type="date" id="mp-fecha" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+                <div><label class="text-xs text-gray-500">Equipo Rival</label><input type="text" id="mp-rival" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div>
+                <div class="flex gap-4">
+                    <div class="w-1/2"><label class="text-xs text-gray-500 text-green-600 font-bold">Goles (Racing)</label><input type="number" id="mp-gf" class="w-full border-2 border-green-200 p-2 rounded text-center font-bold focus:outline-none focus:border-green-400" value="0"></div>
+                    <div class="w-1/2"><label class="text-xs text-gray-500 text-red-600 font-bold">Goles (Rival)</label><input type="number" id="mp-gc" class="w-full border-2 border-red-200 p-2 rounded text-center font-bold focus:outline-none focus:border-red-400" value="0"></div>
+                </div>
+                
+                <div class="mt-3 p-3 bg-red-50 rounded-lg border border-red-100">
+                    <label class="text-xs text-sky-600 font-bold mb-2 block"><i class="fa-solid fa-users mr-1"></i> ¿Quiénes jugaron este partido?</label>
+                    <p class="text-[9px] text-gray-500 mb-2 leading-tight">Márcalos aquí. Solo los que marques aparecerán en la pestaña de Pagos.</p>
+                    <div id="contenedor-jugaron" class="max-h-32 overflow-y-auto bg-white border border-sky-100 rounded p-2 text-xs space-y-1"></div>
+                </div>
+
+                <div class="mt-3 p-3 bg-sky-50 rounded-lg border border-sky-100">
+                    <label class="text-xs text-sky-600 font-bold mb-2 block"><i class="fa-solid fa-futbol mr-1"></i> Goleadores</label>
+                    <div id="contenedor-goleadores" class="space-y-2 mb-2"></div>
+                    <button type="button" onclick="agregarFilaGoleador()" class="text-[10px] font-bold bg-white border border-sky-200 text-sky-500 px-2 py-1 rounded shadow-sm hover:bg-sky-100">+ Añadir Goleador</button>
+                </div>
+                
+                <div class="mt-3 p-3 bg-green-50 rounded-lg border border-green-100">
+                    <label class="text-xs text-green-700 font-bold block mb-1"><i class="fa-solid fa-wallet mr-1"></i> Vincular a Caja Principal (Para el Reporte):</label>
+                    <select id="mp-carpeta" class="w-full border-2 border-green-200 p-2 rounded text-xs focus:outline-none focus:border-green-400 mb-2"></select>
+                </div>
+                
+                <div><label class="text-xs text-gray-500">Observaciones</label><textarea id="mp-obs" class="w-full border-2 border-sky-100 p-2 rounded text-sm focus:outline-none focus:border-sky-400" rows="2"></textarea></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-5"><button onclick="cerrarModal('modal-partido')" class="px-4 py-2 text-gray-500">Cancelar</button><button onclick="guardarPartido()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button></div>
+        </div>
+    </div>
+
+    <div id="modal-jugador" class="modal p-4"><div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-5"><h3 class="text-lg font-bold mb-4 text-sky-600" id="mj-titulo">Editar Jugador</h3><input type="hidden" id="mj-id"><div class="space-y-3"><div><label class="text-xs text-gray-500">Nombre Completo</label><input type="text" id="mj-nombre" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div><div><label class="text-xs text-gray-500">Apodo</label><input type="text" id="mj-apodo" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div><div><label class="text-xs text-gray-500">Posición</label><input type="text" id="mj-posicion" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div><div><label class="text-xs text-gray-500">Pago por partido (Bs)</label><input type="number" id="mj-tarifa" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div><div><label class="text-xs text-gray-500">Observación</label><input type="text" id="mj-observacion" class="w-full border-2 border-sky-100 p-2 rounded focus:outline-none focus:border-sky-400"></div></div><div class="flex justify-end gap-2 mt-5"><button onclick="cerrarModal('modal-jugador')" class="px-4 py-2 text-gray-500">Cancelar</button><button onclick="guardarJugadorBoton()" class="px-4 py-2 bg-sky-500 text-white rounded-lg">Guardar</button></div></div></div>
+
+    <!-- Navegación Inferior -->
+    <nav class="bg-white border-t border-gray-200 fixed bottom-0 w-full flex justify-around items-center h-16 pb-2 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-20">
+        <button onclick="cambiarTab('tab-caja', this)" class="nav-btn flex flex-col items-center w-1/5 text-sky-500"><i class="fa-solid fa-wallet text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Caja</span></button>
+        <button onclick="cambiarTab('tab-partidos', this)" class="nav-btn flex flex-col items-center w-1/5 text-gray-400 hover:text-sky-300 transition"><i class="fa-solid fa-trophy text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Partidos</span></button>
+        <button onclick="cambiarTab('tab-pagos', this)" class="nav-btn flex flex-col items-center w-1/5 text-gray-400 hover:text-sky-300 transition"><i class="fa-solid fa-hand-holding-dollar text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Pagos</span></button>
+        <button onclick="cambiarTab('tab-dirigentes', this)" class="nav-btn flex flex-col items-center w-1/5 text-gray-400 hover:text-sky-300 transition"><i class="fa-solid fa-user-tie text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Dirigentes</span></button>
+        <button onclick="cambiarTab('tab-jugadores', this)" class="nav-btn flex flex-col items-center w-1/5 text-gray-400 hover:text-sky-300 transition"><i class="fa-solid fa-users text-xl mb-1 mt-2"></i><span class="text-[10px] font-medium">Plantel</span></button>
+    </nav>
+
+    <input type="file" id="foto-uploader" style="display: none;" accept="image/*" onchange="procesarFotoDirigente(event)">
+    <input type="file" id="foto-uploader-jugador" style="display: none;" accept="image/*" onchange="procesarFotoJugador(event)">
+
+    <script>
+        window.onload = () => {
+            if(localStorage.getItem('racingAdmin') === 'true') {
+                document.body.classList.add('admin-mode');
+                document.getElementById('admin-btn').innerHTML = '<i class="fa-solid fa-right-from-bracket text-xl text-red-300 hover:text-red-500 transition"></i>';
+                if(window.sincronizarNube) window.sincronizarNube(); 
+            } else {
+                document.body.classList.remove('admin-mode');
+                document.getElementById('admin-btn').innerHTML = '<i class="fa-solid fa-lock text-xl hover:text-gray-200 transition"></i>';
+            }
+            window.renderizarDirigentes(); window.renderizarJugadores(); window.renderizarCarpetasCaja(); window.renderizarPartidos();
+        };
+
+        window.loginAdmin = function() {
+            if(document.body.classList.contains('admin-mode')) {
+                if(confirm('¿Deseas CERRAR SESIÓN del modo administrador? Nadie podrá editar.')) {
+                    document.body.classList.remove('admin-mode'); localStorage.removeItem('racingAdmin');
+                    document.getElementById('admin-btn').innerHTML = '<i class="fa-solid fa-lock text-xl hover:text-gray-200 transition"></i>';
+                    window.renderizarDirigentes(); window.renderizarJugadores(); window.renderizarCarpetasCaja(); window.renderizarPartidos();
+                } return;
+            }
+            const pass = prompt("Ingresa la contraseña de administrador:");
+            if (pass === "123") {
+                document.body.classList.add('admin-mode'); localStorage.setItem('racingAdmin', 'true');
+                document.getElementById('admin-btn').innerHTML = '<i class="fa-solid fa-right-from-bracket text-xl text-red-300 hover:text-red-500 transition"></i>';
+                alert("¡Bienvenido, Administrador!"); window.renderizarDirigentes(); window.renderizarJugadores(); window.renderizarCarpetasCaja(); window.renderizarPartidos();
+                if(window.sincronizarNube) window.sincronizarNube();
+            } else if (pass !== null) { alert("Contraseña incorrecta."); }
+        }
+
+        window.cambiarTab = function(tabId, boton) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('text-sky-500'); btn.classList.add('text-gray-400'); });
+            boton.classList.remove('text-gray-400'); boton.classList.add('text-sky-500');
+        }
+        window.abrirModal = function(id) { document.getElementById(id).classList.add('active'); }
+        window.cerrarModal = function(id) { document.getElementById(id).classList.remove('active'); }
+
+        window.asistenciaEdicion = []; 
+
+        window.actualizarSelectPagos = function() {
+            const sel = document.getElementById('sel-partido-pagos'); const actualVal = sel.value;
+            sel.innerHTML = '<option value="">-- Selecciona un partido --</option>';
+            window.partidos.forEach(p => { sel.innerHTML += `<option value="${p.id_db}">${p.fecha} - vs ${p.rival} ${p.titulo ? '('+p.titulo+')' : ''}</option>`; });
+            if(actualVal) { sel.value = actualVal; if(document.getElementById('tab-pagos').classList.contains('active')) window.cargarPagosPartido(); }
+        }
+
+        window.cargarPagosPartido = function() {
+            const idPartido = document.getElementById('sel-partido-pagos').value;
+            const contenedor = document.getElementById('contenedor-pagos-partido');
+            if(!idPartido) { contenedor.classList.add('hidden'); return; }
+            contenedor.classList.remove('hidden');
+            const p = window.partidos.find(x => x.id_db === idPartido);
+            document.getElementById('pagos-rival').innerText = `RACING VS ${p.rival.toUpperCase()}`;
+            let resultado = p.gf > p.gc ? 'Victoria' : (p.gf < p.gc ? 'Derrota' : 'Empate');
+            let resColor = p.gf > p.gc ? 'text-green-600' : (p.gf < p.gc ? 'text-red-600' : 'text-yellow-600');
+            let docRes = document.getElementById('pagos-resultado');
+            docRes.innerText = `${resultado} (${p.gf} - ${p.gc})`; docRes.className = `text-xs font-bold mt-1 ${resColor}`;
+
+            let asistenciaLocal = p.asistencia ? JSON.parse(JSON.stringify(p.asistencia)) : [];
+            if(asistenciaLocal.length === 0 && p.jugadoresPagados && p.jugadoresPagados.length > 0) {
+                asistenciaLocal = p.jugadoresPagados.map(id => ({ id_db: id, asistio: true, pagado: true, metodo: 'efectivo', carpetaFuenteId: '' }));
+            }
+            window.asistenciaEdicion = asistenciaLocal;
+            window.renderizarColumnasPagos();
+        }
+
+        window.renderizarColumnasPagos = function() {
+            const colPendientes = document.getElementById('col-pendientes');
+            const colPagados = document.getElementById('col-pagados');
+            colPendientes.innerHTML = ''; colPagados.innerHTML = '';
+            let presupuesto = 0; let pagado = 0;
+            let optsCajas = '<option value="">-- Caja --</option>';
+            window.carpetasCaja.forEach(c => { optsCajas += `<option value="${c.id_db}">${c.nombre}</option>`; });
+
+            window.jugadores.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(j => {
+                let asist = window.asistenciaEdicion.find(a => a.id_db === j.id_db);
+                if(!asist || !asist.asistio) return; 
+                let nombreDisplay = j.apodo || j.nombre.split(' ')[0];
+                presupuesto += j.tarifa;
+
+                if (j.tarifa === 0) {
+                    colPagados.innerHTML += `<div class="bg-white p-1.5 rounded shadow-sm border-l-[3px] border-gray-400 flex flex-col mb-1.5"><span class="font-bold text-[10px] text-gray-700">${nombreDisplay}</span><span class="text-[8px] bg-gray-100 text-gray-500 font-bold px-1.5 rounded mt-0.5 inline-block w-fit">🚫 NO COBRA</span></div>`;
+                } else if (asist.pagado) {
+                    pagado += j.tarifa;
+                    let txtMetodo = asist.metodo === 'qr' ? '📱 QR' : '💵 Efec';
+                    let nombreCarpeta = 'Caja Gen.';
+                    if(asist.carpetaFuenteId) {
+                        let cf = window.carpetasCaja.find(c => c.id_db === asist.carpetaFuenteId);
+                        if(cf) nombreCarpeta = cf.nombre;
+                    }
+                    colPagados.innerHTML += `<div class="bg-white p-1.5 rounded shadow-sm border-l-[3px] border-green-500 flex flex-col mb-1.5"><div class="flex justify-between items-center"><span class="font-bold text-[10px] text-gray-800 truncate w-14">${nombreDisplay}</span><span class="text-[8px] text-green-700 font-bold bg-green-100 px-1 rounded truncate">${txtMetodo}</span></div><div class="flex justify-between items-center mt-1"><span class="text-[8px] text-gray-500 truncate w-20" title="${nombreCarpeta}">De: ${nombreCarpeta}</span><button onclick="desmarcarPagado('${j.id_db}')" class="admin-only text-[8px] text-red-500 underline font-bold px-1 hover:text-red-700">Editar</button></div></div>`;
+                } else {
+                    colPendientes.innerHTML += `<div class="bg-white p-1.5 rounded shadow-sm border-l-[3px] border-yellow-400 flex flex-col mb-1.5"><div class="flex justify-between items-center mb-1"><span class="font-bold text-[10px] text-gray-800 truncate w-16">${nombreDisplay}</span><span class="text-[8px] font-bold text-yellow-700 bg-yellow-100 px-1 rounded">Bs ${j.tarifa}</span></div><div class="flex gap-1 mb-1"><select id="met-${j.id_db}" class="admin-only text-[8px] border p-0.5 rounded w-[35%] bg-gray-50"><option value="efectivo">💵 Efe</option><option value="qr">📱 QR</option></select><select id="caj-${j.id_db}" class="admin-only text-[8px] border p-0.5 rounded w-[65%] bg-gray-50 truncate">${optsCajas}</select></div><button onclick="marcarPagado('${j.id_db}')" class="admin-only w-full bg-green-500 hover:bg-green-600 text-white text-[9px] font-bold py-1 rounded">PASAR A PAGADO</button></div>`;
+                }
+            });
+            document.getElementById('pagos-calc-presupuesto').innerText = `Bs ${presupuesto}`;
+            document.getElementById('pagos-calc-pagado').innerText = `Bs ${pagado}`;
+            document.getElementById('pagos-calc-pendiente').innerText = `Bs ${presupuesto - pagado}`;
+        }
+
+        window.marcarPagado = function(id_db) {
+            let met = document.getElementById(`met-${id_db}`).value;
+            let caj = document.getElementById(`caj-${id_db}`).value;
+            if(!caj) return alert("Selecciona de qué caja salió el dinero.");
+            let a = window.asistenciaEdicion.find(x => x.id_db === id_db);
+            if(a) { a.pagado = true; a.metodo = met; a.carpetaFuenteId = caj; window.renderizarColumnasPagos(); }
+        }
+
+        window.desmarcarPagado = function(id_db) {
+            let a = window.asistenciaEdicion.find(x => x.id_db === id_db);
+            if(a) { a.pagado = false; a.metodo = null; a.carpetaFuenteId = null; window.renderizarColumnasPagos(); }
+        }
+
+        window.guardarPagosPartido = function() {
+            const idPartido = document.getElementById('sel-partido-pagos').value;
+            if(!idPartido) return;
+            const partido = window.partidos.find(p => p.id_db === idPartido);
+            if(!partido) return;
+            let carpetasModificadas = new Set();
+            let totalPagadoReal = 0;
+
+            window.carpetasCaja.forEach(c => {
+                if(c.aportes) {
+                    let lenOriginal = c.aportes.length;
+                    c.aportes = c.aportes.filter(a => !a.id.startsWith('pago_' + idPartido + '_'));
+                    if(c.aportes.length !== lenOriginal) carpetasModificadas.add(c.id_db);
+                }
+            });
+
+            window.asistenciaEdicion.forEach(a => {
+                if(a.asistio && a.pagado) {
+                    const j = window.jugadores.find(x => x.id_db === a.id_db);
+                    if(j && j.tarifa > 0 && a.carpetaFuenteId) {
+                        totalPagadoReal += j.tarifa;
+                        let carpeta = window.carpetasCaja.find(c => c.id_db === a.carpetaFuenteId);
+                        if(carpeta) {
+                            if(!carpeta.aportes) carpeta.aportes = [];
+                            carpeta.aportes.push({
+                                id: 'pago_' + idPartido + '_' + j.id_db,
+                                tipo: 'egreso', dirigenteId: 'general',
+                                dirigenteNombre: 'Pago a ' + (j.apodo || j.nombre.split(' ')[0]),
+                                monto: j.tarifa, fecha: partido.fecha,
+                                observacion: `Pago ${a.metodo === 'qr' ? 'QR' : 'Efectivo'} - Partido vs ${partido.rival}`
+                            });
+                            carpetasModificadas.add(carpeta.id_db);
+                        }
+                    }
+                }
+            });
+
+            carpetasModificadas.forEach(idCaja => {
+                const cData = window.carpetasCaja.find(c => c.id_db === idCaja);
+                window.guardarYSubirCarpeta({ aportes: cData.aportes }, idCaja);
+            });
+
+            const partidoActualizado = {
+                asistencia: window.asistenciaEdicion,
+                totalPagado: totalPagadoReal,
+                jugadoresPagados: window.asistenciaEdicion.filter(a => a.pagado).map(a => a.id_db)
+            };
+            window.guardarYSubirPartido(partidoActualizado, idPartido);
+            alert("✅ ¡Pagos guardados y descontados exitosamente!");
+        }
+
+        window.guardarPartido = function() {
+            const id = document.getElementById('mp-id').value;
+            let idPartidoFinal = id || 'p_' + Date.now();
+            const titulo = document.getElementById('mp-titulo-input').value;
+            const fecha = document.getElementById('mp-fecha').value;
+            const rival = document.getElementById('mp-rival').value;
+            const gf = document.getElementById('mp-gf').value;
+            const gc = document.getElementById('mp-gc').value;
+            const obs = document.getElementById('mp-obs').value;
+            const carpetaId = document.getElementById('mp-carpeta').value;
+            if(!fecha || !rival) return alert("Pon fecha y rival.");
+
+            const goleadores = [];
+            document.querySelectorAll('#contenedor-goleadores .flex').forEach(fila => {
+                const jugId = fila.querySelector('.sel-jugador').value;
+                const goles = parseInt(fila.querySelector('.inp-goles').value);
+                if(jugId && goles > 0) {
+                    const jug = window.jugadores.find(j => j.id_db == jugId);
+                    goleadores.push({ id_db: jugId, nombre: (jug.apodo || jug.nombre.split(' ')[0]), goles: goles });
+                }
+            });
+
+            const pViejo = id ? window.partidos.find(x => x.id_db === id) : null;
+            let asistenciaNueva = [];
+            document.querySelectorAll('.chk-jugador').forEach(chk => {
+                if(chk.checked) {
+                    let idJug = chk.value;
+                    let exist = (pViejo && pViejo.asistencia) ? pViejo.asistencia.find(a => a.id_db === idJug) : null;
+                    asistenciaNueva.push({ id_db: idJug, asistio: true, pagado: exist ? exist.pagado : false, metodo: exist ? exist.metodo : null, carpetaFuenteId: exist ? exist.carpetaFuenteId : null });
+                }
+            });
+
+            window.guardarYSubirPartido({ 
+                titulo, fecha, rival, gf, gc, obs, goleadores, carpetaId,
+                asistencia: asistenciaNueva, 
+                totalPagado: pViejo ? pViejo.totalPagado : 0, 
+                jugadoresPagados: pViejo ? pViejo.jugadoresPagados : []
+            }, idPartidoFinal);
+            cerrarModal('modal-partido');
+        }
+
+        window.renderizarPartidos = function() {
+            const lista = document.getElementById('lista-partidos');
+            lista.innerHTML = '';
+            window.partidos.forEach(p => {
+                let colorClass = p.gf > p.gc ? 'border-green-500' : (p.gf < p.gc ? 'border-red-500' : 'border-yellow-500');
+                let resultado = p.gf > p.gc ? 'Victoria' : (p.gf < p.gc ? 'Derrota' : 'Empate');
+                let resColor = p.gf > p.gc ? 'text-green-600' : (p.gf < p.gc ? 'text-red-600' : 'text-yellow-600');
+                
+                let golesHtml = '';
+                if(p.goleadores && p.goleadores.length > 0) {
+                    let tags = p.goleadores.map(g => `<span class="bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full text-[9px] mr-1 mb-1 inline-block"><i class="fa-solid fa-futbol mr-1"></i>${g.nombre} (${g.goles})</span>`).join('');
+                    golesHtml = `<div class="mt-2 border-t pt-2">${tags}</div>`;
+                }
+
+                lista.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border-l-4 ${colorClass} relative"><div class="absolute top-2 right-2 flex gap-1 z-10"><button onclick="window.descargarUnPartidoJPG('${p.id_db}')" class="text-sky-600 bg-sky-50 rounded p-1.5"><i class="fa-solid fa-image text-[10px]"></i></button><button onclick="window.descargarUnPartidoPDF('${p.id_db}')" class="text-red-600 bg-red-50 rounded p-1.5"><i class="fa-solid fa-file-pdf text-[10px]"></i></button><button onclick="abrirModalPartido('${p.id_db}')" class="admin-only text-sky-300 bg-sky-50 rounded p-1.5"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="window.borrarRegistroLocal('partidos', '${p.id_db}')" class="admin-only text-red-300 bg-red-50 rounded p-1.5"><i class="fa-solid fa-trash text-[10px]"></i></button></div><h4 class="font-bold text-gray-800 text-sm uppercase">${p.titulo || 'Partido'}</h4><p class="text-xs text-gray-400 mt-1">${p.fecha} | vs ${p.rival}</p><div class="flex justify-center items-center gap-4 my-2 bg-sky-50 py-2 rounded-lg"><div class="text-center"><p class="text-[10px] text-sky-600 font-bold">RACING</p><p class="text-2xl font-black">${p.gf}</p></div><div class="font-bold">-</div><div class="text-center"><p class="text-[10px] text-gray-500">${p.rival}</p><p class="text-2xl font-black">${p.gc}</p></div></div>${golesHtml}</div>`;
+            });
+            if(window.actualizarSelectPagos) window.actualizarSelectPagos();
+        }
+
+        window.abrirModalPartido = function(id = null) {
+            const selCarpeta = document.getElementById('mp-carpeta');
+            selCarpeta.innerHTML = '<option value="">-- No vincular a caja --</option>';
+            window.carpetasCaja.forEach(c => { selCarpeta.innerHTML += `<option value="${c.id_db}">${c.nombre}</option>`; });
+
+            if(id) {
+                const p = window.partidos.find(x => x.id_db === id);
+                document.getElementById('mp-titulo-modal').innerText = "Editar Partido";
+                document.getElementById('mp-id').value = p.id_db;
+                document.getElementById('mp-titulo-input').value = p.titulo || '';
+                document.getElementById('mp-fecha').value = p.fecha;
+                document.getElementById('mp-rival').value = p.rival;
+                document.getElementById('mp-gf').value = p.gf;
+                document.getElementById('mp-gc').value = p.gc;
+                document.getElementById('mp-obs').value = p.obs || '';
+                if(p.carpetaId) document.getElementById('mp-carpeta').value = p.carpetaId;
+                
+                const contJugaron = document.getElementById('contenedor-jugaron');
+                contJugaron.innerHTML = '';
+                let asisD = p.asistencia || [];
+                window.jugadores.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(j => {
+                    let n = j.apodo || j.nombre.split(' ')[0];
+                    let checked = asisD.find(a => a.id_db === j.id_db && a.asistio) ? 'checked' : '';
+                    contJugaron.innerHTML += `<label class="flex items-center gap-2 p-1 hover:bg-sky-50 rounded cursor-pointer"><input type="checkbox" class="chk-jugador" value="${j.id_db}" ${checked}><span class="flex-1">${n}</span></label>`;
+                });
+                document.getElementById('contenedor-goleadores').innerHTML = '';
+                if(p.goleadores) p.goleadores.forEach(g => window.agregarFilaGoleador(g.id_db, g.goles));
+            } else {
+                document.getElementById('mp-titulo-modal').innerText = "Registrar Partido";
+                document.getElementById('mp-id').value = '';
+                document.getElementById('mp-titulo-input').value = '';
+                document.getElementById('mp-fecha').value = '';
+                document.getElementById('mp-rival').value = '';
+                document.getElementById('mp-gf').value = '0';
+                document.getElementById('mp-gc').value = '0';
+                document.getElementById('mp-obs').value = '';
+                document.getElementById('contenedor-goleadores').innerHTML = '';
+                const contJugaron = document.getElementById('contenedor-jugaron');
+                contJugaron.innerHTML = '';
+                window.jugadores.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(j => {
+                    let n = j.apodo || j.nombre.split(' ')[0];
+                    contJugaron.innerHTML += `<label class="flex items-center gap-2 p-1 hover:bg-sky-50 rounded cursor-pointer"><input type="checkbox" class="chk-jugador" value="${j.id_db}"><span class="flex-1">${n}</span></label>`;
+                });
+            }
+            abrirModal('modal-partido');
+        }
+
+        window.agregarFilaGoleador = function(jugadorIdStr = "", golesVal = 1) {
+            const container = document.getElementById('contenedor-goleadores');
+            const filaId = Date.now().toString() + Math.floor(Math.random() * 1000);
+            let options = '<option value="">Selecciona al jugador...</option>';
+            window.jugadores.forEach(j => {
+                let display = (j.apodo || j.nombre.split(' ')[0]);
+                options += `<option value="${j.id_db}" ${j.id_db === jugadorIdStr ? 'selected' : ''}>${display}</option>`;
+            });
+            container.innerHTML += `<div class="flex gap-2 items-center mb-1" id="gol-${filaId}"><select class="sel-jugador flex-1 border p-1 rounded text-xs">${options}</select><input type="number" class="inp-goles w-16 border p-1 rounded text-xs text-center" value="${golesVal}" min="1"><button type="button" onclick="document.getElementById('gol-${filaId}').remove()" class="text-red-400 p-1"><i class="fa-solid fa-times"></i></button></div>`;
+        }
+
+        window.renderizarDirigentes = function() {
+            window.dirigentes.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            const lista = document.getElementById('lista-dirigentes'); lista.innerHTML = '';
+            window.dirigentes.forEach(d => {
+                lista.innerHTML += `<li class="p-3 flex justify-between items-center border-b bg-white"><span class="font-medium text-gray-800 text-sm">${d.nombre}</span><div class="admin-only flex gap-3"><button onclick="editarDirigenteUI('${d.id_db}')" class="text-sky-500"><i class="fa-solid fa-pen"></i></button><button onclick="window.borrarRegistroLocal('dirigentes', '${d.id_db}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></div></li>`;
+            });
+        }
+        window.abrirModalDirigente = function() { document.getElementById('md-titulo').innerText = "Nuevo Dirigente"; document.getElementById('md-id').value = ""; document.getElementById('md-nombre').value = ""; abrirModal('modal-dirigente'); }
+        window.editarDirigenteUI = function(id) { const d = window.dirigentes.find(x => x.id_db === id); if(d) { document.getElementById('md-titulo').innerText = "Editar Dirigente"; document.getElementById('md-id').value = d.id_db; document.getElementById('md-nombre').value = d.nombre; abrirModal('modal-dirigente'); } }
+        window.guardarDirigente = function() { const id = document.getElementById('md-id').value; const nombre = document.getElementById('md-nombre').value; if(nombre) window.guardarYSubirDirigente({ nombre }, id || null); cerrarModal('modal-dirigente'); }
+
+        window.renderizarJugadores = function() {
+            window.jugadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            const lista = document.getElementById('lista-jugadores'); lista.innerHTML = '';
+            window.jugadores.forEach(j => {
+                lista.innerHTML += `<div class="bg-white p-3 rounded-xl shadow-sm text-center border relative"><h4 class="font-bold text-gray-800 text-[11px] mb-1">${j.nombre}</h4><p class="text-[9px] text-gray-500 italic mb-1">${j.apodo ? '"'+j.apodo+'"' : ''}</p><p class="text-[9px] text-gray-400 mb-1">${j.posicion || ''}</p><p class="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-full inline-block">Bs ${j.tarifa}</p><div class="admin-only absolute top-2 right-2 flex flex-col gap-1"><button onclick="editarJugador('${j.id_db}')" class="text-sky-500"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="window.borrarRegistroLocal('jugadores', '${j.id_db}')" class="text-red-500"><i class="fa-solid fa-trash text-[10px]"></i></button></div></div>`;
+            });
+        }
+        window.nuevoJugador = function() { document.getElementById('mj-titulo').innerText = "Nuevo Jugador"; document.getElementById('mj-id').value = ""; document.getElementById('mj-nombre').value = ""; document.getElementById('mj-apodo').value = ""; document.getElementById('mj-posicion').value = ""; document.getElementById('mj-tarifa').value = "0"; document.getElementById('mj-observacion').value = ""; abrirModal('modal-jugador'); }
+        window.editarJugador = function(id) { const j = window.jugadores.find(x => x.id_db === id); if(j) { document.getElementById('mj-titulo').innerText = "Editar Jugador"; document.getElementById('mj-id').value = j.id_db; document.getElementById('mj-nombre').value = j.nombre; document.getElementById('mj-apodo').value = j.apodo || ''; document.getElementById('mj-posicion').value = j.posicion || ''; document.getElementById('mj-tarifa').value = j.tarifa || 0; document.getElementById('mj-observacion').value = j.observacion || ''; abrirModal('modal-jugador'); } }
+        window.guardarJugadorBoton = function() { const id = document.getElementById('mj-id').value; window.guardarYSubirJugador({ nombre: document.getElementById('mj-nombre').value, apodo: document.getElementById('mj-apodo').value, posicion: document.getElementById('mj-posicion').value, tarifa: parseFloat(document.getElementById('mj-tarifa').value)||0, observacion: document.getElementById('mj-observacion').value }, id || null); cerrarModal('modal-jugador'); }
+
+        window.renderizarCarpetasCaja = function() {
+            const lista = document.getElementById('lista-carpetas'); lista.innerHTML = ''; let gt = 0;
+            window.carpetasCaja.forEach(c => {
+                let tc = c.aportes ? c.aportes.reduce((s, a) => a.tipo === 'egreso' ? s - a.monto : (a.tipo === 'pendiente' ? s : s + a.monto), 0) : 0;
+                gt += tc;
+                lista.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center cursor-pointer" onclick="abrirCarpeta('${c.id_db}')"><div class="flex items-center"><div class="w-10 h-10 bg-sky-50 text-sky-500 rounded-lg flex items-center justify-center mr-3"><i class="fa-solid fa-folder-open"></i></div><div><h4 class="font-bold text-gray-800 text-sm">${c.nombre}</h4><p class="text-[10px] text-gray-400">${c.aportes ? c.aportes.length : 0} registros</p></div></div><div class="text-right flex items-center"><p class="font-bold ${tc < 0 ? 'text-red-600' : 'text-green-600'} text-sm mr-2">Bs ${tc.toFixed(2)}</p><div class="admin-only flex gap-1"><button onclick="event.stopPropagation(); editarCarpeta('${c.id_db}')" class="text-sky-500 p-1"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="event.stopPropagation(); window.borrarRegistroLocal('carpetasCaja', '${c.id_db}')" class="text-red-500 p-1"><i class="fa-solid fa-trash text-[10px]"></i></button></div></div></div>`;
+            });
+            document.getElementById('saldo-total-caja').innerText = `Bs. ${gt.toFixed(2)}`;
+        }
+        window.abrirModalCarpeta = function() { document.getElementById('mca-titulo').innerText = "Nueva Carpeta"; document.getElementById('mca-id').value = ""; document.getElementById('mca-nombre').value = ""; abrirModal('modal-carpeta'); }
+        window.editarCarpeta = function(id) { const c = window.carpetasCaja.find(x => x.id_db === id); if(c) { document.getElementById('mca-titulo').innerText = "Editar Carpeta"; document.getElementById('mca-id').value = c.id_db; document.getElementById('mca-nombre').value = c.nombre; abrirModal('modal-carpeta'); } }
+        window.guardarCarpeta = function() { const id = document.getElementById('mca-id').value; const nombre = document.getElementById('mca-nombre').value; if(nombre) window.guardarYSubirCarpeta({ nombre, aportes: id ? undefined : [] }, id || null); cerrarModal('modal-carpeta'); }
+        window.abrirCarpeta = function(id) { window.carpetaActivaId = id; document.getElementById('vista-carpetas').classList.remove('active'); document.getElementById('vista-detalle-carpeta').classList.add('active'); window.actualizarDetalleCarpeta(); }
+        window.volverCarpetas = function() { window.carpetaActivaId = null; document.getElementById('vista-detalle-carpeta').classList.remove('active'); document.getElementById('vista-carpetas').classList.add('active'); window.renderizarCarpetasCaja(); }
+        
+        window.abrirModalAporte = function(idAporte = null) {
+            const sel = document.getElementById('map-dirigente'); sel.innerHTML = '<option value="general">General</option>';
+            window.dirigentes.forEach(d => sel.innerHTML += `<option value="${d.id_db}">${d.nombre}</option>`);
+            if(idAporte) {
+                document.getElementById('map-titulo').innerText = "Editar Movimiento";
+                const c = window.carpetasCaja.find(x => x.id_db === window.carpetaActivaId);
+                const a = c.aportes.find(x => x.id === idAporte);
+                document.getElementById('map-aporte-id').value = a.id;
+                document.getElementById('map-tipo').value = a.tipo || 'ingreso';
+                document.getElementById('map-dirigente').value = a.dirigenteId || 'general';
+                document.getElementById('map-monto').value = a.monto;
+                document.getElementById('map-fecha').value = a.fecha;
+                document.getElementById('map-obs').value = a.observacion || '';
+            } else {
+                document.getElementById('map-titulo').innerText = "Nuevo Movimiento";
+                document.getElementById('map-aporte-id').value = '';
+                document.getElementById('map-tipo').value = 'ingreso';
+                document.getElementById('map-monto').value = '';
+                document.getElementById('map-fecha').value = new Date().toISOString().split('T')[0];
+                document.getElementById('map-obs').value = '';
+            }
+            abrirModal('modal-aporte');
+        }
+
+        window.guardarAporte = function() {
+            const idAporte = document.getElementById('map-aporte-id').value;
+            const tipo = document.getElementById('map-tipo').value;
+            const dirId = document.getElementById('map-dirigente').value;
+            const monto = parseFloat(document.getElementById('map-monto').value);
+            const fecha = document.getElementById('map-fecha').value;
+            const obs = document.getElementById('map-obs').value;
+            if(isNaN(monto) || !fecha) return alert("Pon monto y fecha válidos.");
+            let dirNombre = "General";
+            if(dirId !== 'general') { const d = window.dirigentes.find(x => x.id_db === dirId); if(d) dirNombre = d.nombre; }
+            const c = window.carpetasCaja.find(x => x.id_db === window.carpetaActivaId);
+            let nA = [...(c.aportes || [])];
+            if(idAporte) {
+                let idx = nA.findIndex(a => a.id === idAporte);
+                if(idx > -1) nA[idx] = { id: idAporte, tipo, dirigenteId: dirId, dirigenteNombre: dirNombre, monto, fecha, observacion: obs };
+            } else {
+                nA.push({ id: 'ap_' + Date.now(), tipo, dirigenteId: dirId, dirigenteNombre: dirNombre, monto, fecha, observacion: obs });
+            }
+            window.guardarYSubirCarpeta({ aportes: nA }, window.carpetaActivaId);
+            cerrarModal('modal-aporte');
+        }
+
+        window.eliminarAporte = function(id) {
+            if(confirm("¿Eliminar movimiento?")) {
+                const c = window.carpetasCaja.find(x => x.id_db === window.carpetaActivaId);
+                let nA = c.aportes.filter(a => a.id !== id);
+                window.guardarYSubirCarpeta({ aportes: nA }, window.carpetaActivaId);
+            }
+        }
+
+        window.actualizarDetalleCarpeta = function() {
+            const c = window.carpetasCaja.find(x => x.id_db === window.carpetaActivaId); if(!c) return;
+            document.getElementById('titulo-carpeta-detalle').innerText = c.nombre;
+            const lista = document.getElementById('lista-aportes'); lista.innerHTML = ''; let t = 0;
+            if(c.aportes && c.aportes.length > 0) {
+                c.aportes.forEach(a => {
+                    let ei = a.tipo !== 'egreso' && a.tipo !== 'pendiente';
+                    if(ei) t += a.monto; if(a.tipo === 'egreso') t -= a.monto;
+                    let col = ei ? 'text-green-600' : (a.tipo === 'egreso' ? 'text-red-600' : 'text-yellow-600');
+                    lista.innerHTML += `<div class="p-3 border-b flex justify-between items-center"><div><p class="font-bold text-sm text-gray-800">${a.dirigenteNombre}</p><p class="text-[10px] text-gray-400">${a.fecha}</p>${a.observacion? '<p class="text-[10px] text-gray-500 italic">Obs: '+a.observacion+'</p>':''}</div><div class="text-right"><p class="font-bold ${col}">Bs ${a.monto}</p><div class="admin-only flex gap-2 mt-1"><button onclick="abrirModalAporte('${a.id}')" class="text-sky-500 text-[10px]"><i class="fa-solid fa-pen"></i></button><button onclick="eliminarAporte('${a.id}')" class="text-red-500 text-[10px]"><i class="fa-solid fa-trash"></i></button></div></div></div>`;
+                });
+            } else { lista.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Sin movimientos.</p>'; }
+            document.getElementById('total-carpeta-detalle').innerText = `Bs ${t.toFixed(2)}`;
+        }
+
+        // --- REPORTES ---
+        window.descargarUnPartidoPDF = function(id_db) {
+            const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'pt', 'a4');
+            doc.setFontSize(22); doc.setTextColor(14, 165, 233); doc.text("Club Racing Loa", 40, 50);
+            doc.setFontSize(16); doc.setTextColor(31, 41, 55); doc.text(`Resumen vs ${p.rival}`, 40, 75);
+            doc.save(`Resumen_${p.rival}.pdf`);
+        }
+        window.descargarUnPartidoJPG = function(id_db) { alert("Reporte JPG generado"); }
+        window.descargarReportePartidosPDF = function() { alert("PDF Historial"); }
+        window.descargarReportePartidosJPG = function() { alert("JPG Historial"); }
+        window.descargarReporteJugadoresPDF = function() { alert("PDF Plantel"); }
+        window.descargarReporteJugadoresJPG = function() { alert("JPG Plantel"); }
+        window.descargarReporteCarpetaPDF = function() { alert("PDF Caja"); }
+        window.descargarReporteCarpetaJPG = function() { alert("JPG Caja"); }
+        window.descargarReporteAsistenciaPDF = function() { alert("PDF Pagos"); }
+        window.descargarReporteAsistenciaJPG = function() { alert("JPG Pagos"); }
+    </script>
+</body>
+</html>
