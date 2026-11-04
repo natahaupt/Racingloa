@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Racing Loa - Admin</title>
     
-    <!-- PWA Config -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0ea5e9">
     <link rel="apple-touch-icon" href="icono_app.png">
@@ -13,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Librerías para reportes (Páginas Automáticas y Canvas Largo) -->
+    <!-- Librerías de Reportes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -34,47 +33,12 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        window.db = db;
-        window.setDoc = setDoc;
-        window.doc = doc;
-        window.deleteDoc = deleteDoc;
+        window.db = db; window.setDoc = setDoc; window.doc = doc; window.deleteDoc = deleteDoc;
 
-        // --- DATOS BASE INICIALES ---
-        const jugadoresDefecto = [
-            { id_db: 'j1', nombre: 'Marcelo Alberto Medina', apodo: 'Chelo', posicion: 'Arquero', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j2', nombre: 'Jugador no identificado', apodo: 'Chila Jose', posicion: 'Zaguero', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j3', nombre: 'Daniel Maseli', apodo: 'Daniel', posicion: 'Zaguero', tarifa: 100, observacion: '', foto: null },
-            { id_db: 'j4', nombre: 'Harold Blanco Guayhua', apodo: 'Harold', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
-            { id_db: 'j5', nombre: 'Jose Ronald Mamani Nina', apodo: 'Ronald', posicion: 'Medio Campo', tarifa: 100, observacion: '', foto: null },
-            { id_db: 'j6', nombre: 'Nelson Jesus Mamani Alvarez', apodo: 'Nelson', posicion: 'Medio Campo', tarifa: 250, observacion: '', foto: null },
-            { id_db: 'j7', nombre: 'Froilan Felix Espejo Canaza', apodo: 'Froy', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j8', nombre: 'Frank Kevin Perez Apaza', apodo: 'Chiqui', posicion: 'Medio Campo', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j9', nombre: 'Cristhian Daniel Maydana Tinta', apodo: 'Cristian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j10', nombre: 'Adrian', apodo: 'Adrian', posicion: 'Delantero', tarifa: 200, observacion: '', foto: null },
-            { id_db: 'j11', nombre: 'Roberto Carlos Macuchapi Laura', apodo: 'Sub 20 1', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
-            { id_db: 'j12', nombre: 'Luis Fernando Villalobos Mamani', apodo: 'Sub 20 2', posicion: 'Lateral', tarifa: 0, observacion: '', foto: null },
-            { id_db: 'j13', nombre: 'Milton Limachi Surco', apodo: 'Milton', posicion: 'Comodín', tarifa: 0, observacion: '', foto: null }
-        ];
-
-        const dirigentesDefecto = [
-            { id_db: 'd1', nombre: 'Bernardo Maidana', foto: null }, { id_db: 'd2', nombre: 'Felipe Choque', foto: null },
-            { id_db: 'd3', nombre: 'Félix Limachi', foto: null }, { id_db: 'd4', nombre: 'Roberto Ceballos', foto: null },
-            { id_db: 'd5', nombre: 'René Ceballos', foto: null }, { id_db: 'd6', nombre: 'Ernesto Ceballos', foto: null },
-            { id_db: 'd7', nombre: 'Víctor Maidana', foto: null }
-        ];
-
-        const carpetasDefecto = [
-            { id_db: 'c1', nombre: 'Cuotas Primer Partido', aportes: [] }
-        ];
-
-        let lj = localStorage.getItem('rl_jugadores'); window.jugadores = lj ? JSON.parse(lj) : jugadoresDefecto;
-        let ld = localStorage.getItem('rl_dirigentes'); window.dirigentes = ld ? JSON.parse(ld) : dirigentesDefecto;
-        let lc = localStorage.getItem('rl_carpetas'); window.carpetasCaja = lc ? JSON.parse(lc) : carpetasDefecto;
+        let lj = localStorage.getItem('rl_jugadores'); window.jugadores = lj ? JSON.parse(lj) : [];
+        let ld = localStorage.getItem('rl_dirigentes'); window.dirigentes = ld ? JSON.parse(ld) : [];
+        let lc = localStorage.getItem('rl_carpetas'); window.carpetasCaja = lc ? JSON.parse(lc) : [];
         let lp = localStorage.getItem('rl_partidos'); window.partidos = lp ? JSON.parse(lp) : [];
-
-        if(!window.jugadores || window.jugadores.length === 0) window.jugadores = [...jugadoresDefecto];
-        if(!window.dirigentes || window.dirigentes.length === 0) window.dirigentes = [...dirigentesDefecto];
-        if(!window.carpetasCaja || window.carpetasCaja.length === 0) window.carpetasCaja = [...carpetasDefecto];
 
         window.carpetaActivaId = null;
 
@@ -139,7 +103,7 @@
             try { await window.deleteDoc(doc(db, coleccion, id_db)); } catch(e) {}
         };
 
-        // --- LISTENERS SIN DUPLICADOS ---
+        // --- LISTENERS CON FILTRO ESTRICTO ANTIDUPLICADOS ---
         onSnapshot(collection(db, "dirigentes"), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 let data = { id_db: change.doc.id, ...change.doc.data() };
@@ -149,8 +113,10 @@
                 }
                 if (change.type === "removed") { window.dirigentes = window.dirigentes.filter(x => x.id_db !== change.doc.id); }
             }); 
-            // Eliminar duplicados en memoria por ID
-            window.dirigentes = Array.from(new Map(window.dirigentes.map(item => [item.id_db, item])).values());
+            // Unificar por nombre para evitar duplicados de mayúsculas/minúsculas o IDs distintos
+            let unicos = {};
+            window.dirigentes.forEach(d => { let k = d.nombre.trim().toLowerCase(); if(!unicos[k] || d.foto) unicos[k] = d; });
+            window.dirigentes = Object.values(unicos);
             window.guardarDatosLocales(); if(window.renderizarDirigentes) window.renderizarDirigentes();
         }, () => {});
 
@@ -163,7 +129,9 @@
                 }
                 if (change.type === "removed") { window.jugadores = window.jugadores.filter(x => x.id_db !== change.doc.id); }
             }); 
-            window.jugadores = Array.from(new Map(window.jugadores.map(item => [item.id_db, item])).values());
+            let unicos = {};
+            window.jugadores.forEach(j => { let k = j.nombre.trim().toLowerCase(); if(!unicos[k] || j.foto) unicos[k] = j; });
+            window.jugadores = Object.values(unicos);
             window.guardarDatosLocales(); if(window.renderizarJugadores) window.renderizarJugadores();
         }, () => {});
 
@@ -465,59 +433,7 @@
         window.cerrarModal = function(id) { document.getElementById(id).classList.remove('active'); }
 
         // ==========================================
-        // GESTIÓN DE FOTOS Y PLANTEL SIN DUPLICADOS
-        // ==========================================
-        let dirigenteAEditarFoto = null;
-        let jugadorAEditarFoto = null;
-
-        window.solicitarFotoDirigente = function(id_db) { dirigenteAEditarFoto = id_db; document.getElementById('foto-uploader').click(); }
-        window.procesarFotoDirigente = function(event) {
-            const file = event.target.files[0];
-            if(file && dirigenteAEditarFoto !== null) {
-                const reader = new FileReader();
-                reader.onload = function(e) { window.guardarYSubirDirigente({ foto: e.target.result }, dirigenteAEditarFoto); dirigenteAEditarFoto = null; };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        window.solicitarFotoJugador = function(id_db) { jugadorAEditarFoto = id_db; document.getElementById('foto-uploader-jugador').click(); }
-        window.procesarFotoJugador = function(event) {
-            const file = event.target.files[0];
-            if(file && jugadorAEditarFoto !== null) {
-                const reader = new FileReader();
-                reader.onload = function(e) { window.guardarYSubirJugador({ foto: e.target.result }, jugadorAEditarFoto); jugadorAEditarFoto = null; };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        window.renderizarDirigentes = function() {
-            window.dirigentes = Array.from(new Map(window.dirigentes.map(item => [item.id_db, item])).values());
-            window.dirigentes.sort((a, b) => a.nombre.localeCompare(b.nombre));
-            const lista = document.getElementById('lista-dirigentes'); lista.innerHTML = '';
-            window.dirigentes.forEach(d => {
-                let avatar = d.foto ? `<img src="${d.foto}" class="w-10 h-10 rounded-full object-cover border-2 border-sky-200">` : `<div class="w-10 h-10 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center font-bold border-2 border-sky-200">${d.nombre.charAt(0)}</div>`;
-                lista.innerHTML += `<li class="p-3 flex justify-between items-center border-b bg-white"><div class="flex items-center"><div class="mr-3 relative group ${document.body.classList.contains('admin-mode') ? 'cursor-pointer' : ''}" onclick="if(document.body.classList.contains('admin-mode')) solicitarFotoDirigente('${d.id_db}')">${avatar}<div class="admin-only absolute inset-0 bg-black bg-opacity-40 rounded-full hidden group-hover:flex items-center justify-center text-white text-[10px]"><i class="fa-solid fa-camera"></i></div></div><span class="font-medium text-gray-800 text-sm">${d.nombre}</span></div><div class="admin-only flex gap-3"><button onclick="editarDirigenteUI('${d.id_db}')" class="text-sky-500"><i class="fa-solid fa-pen"></i></button><button onclick="window.borrarRegistroLocal('dirigentes', '${d.id_db}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></div></li>`;
-            });
-        }
-        window.abrirModalDirigente = function() { document.getElementById('md-titulo').innerText = "Nuevo Dirigente"; document.getElementById('md-id').value = ""; document.getElementById('md-nombre').value = ""; abrirModal('modal-dirigente'); }
-        window.editarDirigenteUI = function(id) { const d = window.dirigentes.find(x => x.id_db === id); if(d) { document.getElementById('md-titulo').innerText = "Editar Dirigente"; document.getElementById('md-id').value = d.id_db; document.getElementById('md-nombre').value = d.nombre; abrirModal('modal-dirigente'); } }
-        window.guardarDirigente = function() { const id = document.getElementById('md-id').value; const nombre = document.getElementById('md-nombre').value; if(nombre) window.guardarYSubirDirigente({ nombre }, id || null); cerrarModal('modal-dirigente'); }
-
-        window.renderizarJugadores = function() {
-            window.jugadores = Array.from(new Map(window.jugadores.map(item => [item.id_db, item])).values());
-            window.jugadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
-            const lista = document.getElementById('lista-jugadores'); lista.innerHTML = '';
-            window.jugadores.forEach(j => {
-                let avatar = j.foto ? `<img src="${j.foto}" class="w-12 h-12 rounded-full object-cover border-2 border-sky-200">` : `<div class="w-12 h-12 rounded-full bg-sky-50 flex items-center justify-center text-sky-400 border border-sky-100"><i class="fa-solid fa-user"></i></div>`;
-                lista.innerHTML += `<div class="bg-white p-3 rounded-xl shadow-sm text-center border relative group"><div class="mx-auto mb-2 relative w-12 h-12 ${document.body.classList.contains('admin-mode') ? 'cursor-pointer' : ''}" onclick="if(document.body.classList.contains('admin-mode')) solicitarFotoJugador('${j.id_db}')">${avatar}<div class="admin-only absolute inset-0 bg-black bg-opacity-40 rounded-full hidden group-hover:flex items-center justify-center text-white text-[10px]"><i class="fa-solid fa-camera"></i></div></div><h4 class="font-bold text-gray-800 text-[11px] mb-1">${j.nombre}</h4><p class="text-[9px] text-gray-500 italic mb-1">${j.apodo ? '"'+j.apodo+'"' : ''}</p><p class="text-[9px] text-gray-400 mb-1">${j.posicion || ''}</p>${j.observacion ? '<p class="text-[9px] text-amber-600 bg-amber-50 rounded px-1 mb-1 font-semibold">'+j.observacion+'</p>' : ''}<p class="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-full inline-block">Bs ${j.tarifa}</p><div class="admin-only absolute top-2 right-2 flex flex-col gap-1"><button onclick="editarJugador('${j.id_db}')" class="text-sky-500"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="window.borrarRegistroLocal('jugadores', '${j.id_db}')" class="text-red-500"><i class="fa-solid fa-trash text-[10px]"></i></button></div></div>`;
-            });
-        }
-        window.nuevoJugador = function() { document.getElementById('mj-titulo').innerText = "Nuevo Jugador"; document.getElementById('mj-id').value = ""; document.getElementById('mj-nombre').value = ""; document.getElementById('mj-apodo').value = ""; document.getElementById('mj-posicion').value = ""; document.getElementById('mj-tarifa').value = "0"; document.getElementById('mj-observacion').value = ""; abrirModal('modal-jugador'); }
-        window.editarJugador = function(id) { const j = window.jugadores.find(x => x.id_db === id); if(j) { document.getElementById('mj-titulo').innerText = "Editar Jugador"; document.getElementById('mj-id').value = j.id_db; document.getElementById('mj-nombre').value = j.nombre; document.getElementById('mj-apodo').value = j.apodo || ''; document.getElementById('mj-posicion').value = j.posicion || ''; document.getElementById('mj-tarifa').value = j.tarifa || 0; document.getElementById('mj-observacion').value = j.observacion || ''; abrirModal('modal-jugador'); } }
-        window.guardarJugadorBoton = function() { const id = document.getElementById('mj-id').value; window.guardarYSubirJugador({ nombre: document.getElementById('mj-nombre').value, apodo: document.getElementById('mj-apodo').value, posicion: document.getElementById('mj-posicion').value, tarifa: parseFloat(document.getElementById('mj-tarifa').value)||0, observacion: document.getElementById('mj-observacion').value }, id || null); cerrarModal('modal-jugador'); }
-
-        // ==========================================
-        // CONTROL DE PAGOS Y CAJAS
+        // GESTIÓN DE PAGOS Y ASISTENCIA
         // ==========================================
         window.asistenciaEdicion = []; 
 
@@ -646,6 +562,9 @@
             alert("✅ ¡Pagos guardados y descontados exitosamente!");
         }
 
+        // ==========================================
+        // PARTIDOS Y REPORTES PDF/JPG FUNCIONALES
+        // ==========================================
         window.guardarPartido = function() {
             const id = document.getElementById('mp-id').value;
             let idPartidoFinal = id || 'p_' + Date.now();
@@ -764,6 +683,97 @@
             container.innerHTML += `<div class="flex gap-2 items-center mb-1" id="gol-${filaId}"><select class="sel-jugador flex-1 border p-1 rounded text-xs">${options}</select><input type="number" class="inp-goles w-16 border p-1 rounded text-xs text-center" value="${golesVal}" min="1"><button type="button" onclick="document.getElementById('gol-${filaId}').remove()" class="text-red-400 p-1"><i class="fa-solid fa-times"></i></button></div>`;
         }
 
+        // --- REPORTES NATIVOS PDF / JPG ---
+        window.descargarUnPartidoPDF = function(id_db) {
+            const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'pt', 'a4');
+            doc.setFontSize(20); doc.setTextColor(14, 165, 233); doc.text("Club Racing Loa", 40, 40);
+            doc.setFontSize(14); doc.setTextColor(31, 41, 55); doc.text(`Resumen de Partido vs ${p.rival}`, 40, 65);
+            doc.setFontSize(10); doc.setTextColor(107, 114, 128); doc.text(`Fecha: ${p.fecha} | Resultado: Racing ${p.gf} - ${p.gc} ${p.rival}`, 40, 85);
+            
+            let finalY = 110;
+            let filasAsistencia = [];
+            let asistenciaData = p.asistencia || [];
+            window.jugadores.forEach(j => {
+                let a = asistenciaData.find(x => x.id_db === j.id_db);
+                if(a && a.asistio) {
+                    let pTxt = j.tarifa === 0 ? 'NO COBRA' : (a.pagado ? 'PAGADO' : 'PENDIENTE');
+                    let mTxt = j.tarifa === 0 ? '-' : (a.pagado ? (a.metodo === 'qr' ? 'QR' : 'Efectivo') : '-');
+                    let cTxt = '-';
+                    if(a.pagado && a.carpetaFuenteId) {
+                        let c = window.carpetasCaja.find(x => x.id_db === a.carpetaFuenteId);
+                        if(c) cTxt = c.nombre;
+                    }
+                    filasAsistencia.push([j.nombre, pTxt, mTxt, cTxt, `Bs ${j.tarifa}`]);
+                }
+            });
+
+            if (filasAsistencia.length > 0) {
+                doc.autoTable({ startY: finalY, head: [['Jugador', 'Estado', 'Método', 'Descontado de', 'Tarifa']], body: filasAsistencia, theme: 'striped', headStyles: { fillColor: [14, 165, 233] }, styles: { fontSize: 9 } });
+                finalY = doc.lastAutoTable.finalY + 25;
+            }
+
+            if(p.carpetaId) {
+                let caja = window.carpetasCaja.find(c => c.id_db === p.carpetaId);
+                if(caja && caja.aportes && caja.aportes.length > 0) {
+                    doc.text(`Aportes de Caja: ${caja.nombre}`, 40, finalY);
+                    let filasCaja = [];
+                    caja.aportes.forEach(ap => {
+                        let tipo = ap.tipo === 'ingreso' ? 'Ingreso (+)' : (ap.tipo === 'egreso' ? 'Egreso (-)' : 'Pendiente');
+                        filasCaja.push([ap.fecha, tipo, ap.dirigenteNombre, ap.observacion || '-', `Bs ${ap.monto}`]);
+                    });
+                    doc.autoTable({ startY: finalY + 10, head: [['Fecha', 'Tipo', 'Responsable', 'Detalle', 'Monto']], body: filasCaja, theme: 'striped', headStyles: { fillColor: [16, 185, 129] }, styles: { fontSize: 9 } });
+                }
+            }
+            doc.save(`Resumen_Partido_${p.rival}.pdf`);
+        }
+
+        window.descargarUnPartidoJPG = function(id_db) {
+            const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
+            let filas = '';
+            (p.asistencia || []).forEach(a => {
+                if(a.asistio) {
+                    let j = window.jugadores.find(x => x.id_db === a.id_db);
+                    if(j) filas += `<tr><td style="padding:8px; border-bottom:1px solid #ddd;">${j.nombre}</td><td style="padding:8px; border-bottom:1px solid #ddd;">${a.pagado ? 'Pagado' : 'Pendiente'}</td><td style="padding:8px; border-bottom:1px solid #ddd; text-align:right;">Bs ${j.tarifa}</td></tr>`;
+                }
+            });
+            let d = document.createElement('div');
+            d.style.cssText = "position:absolute; left:-9999px; width:800px; background:white; padding:30px; font-family:sans-serif;";
+            d.innerHTML = `<h2>Partido vs ${p.rival} (${p.fecha})</h2><h3>Resultado: Racing ${p.gf} - ${p.gc} ${p.rival}</h3><table style="width:100%; border-collapse:collapse; margin-top:20px;"><tr><th style="background:#0ea5e9; color:white; padding:8px; text-align:left;">Jugador</th><th style="background:#0ea5e9; color:white; padding:8px; text-align:left;">Estado</th><th style="background:#0ea5e9; color:white; padding:8px; text-align:right;">Tarifa</th></tr>${filas}</table>`;
+            document.body.appendChild(d);
+            html2canvas(d, { scale: 2 }).then(canvas => {
+                let l = document.createElement('a'); l.download = `Partido_${p.rival}.jpg`; l.href = canvas.toDataURL('image/jpeg', 1.0); l.click(); d.remove();
+            });
+        }
+
+        window.descargarReportePartidosPDF = function() {
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'pt', 'a4');
+            let rows = []; window.partidos.forEach(p => rows.push([p.fecha, p.rival, `${p.gf} - ${p.gc}`, `Bs ${p.totalPagado || 0}`]));
+            doc.text("Historial de Partidos", 40, 40);
+            doc.autoTable({ startY: 60, head: [['Fecha', 'Rival', 'Resultado', 'Total Pagado']], body: rows });
+            doc.save("Historial_Partidos.pdf");
+        }
+        window.descargarReportePartidosJPG = function() { window.descargarReportePartidosPDF(); }
+        window.descargarReporteJugadoresPDF = function() {
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'pt', 'a4');
+            let rows = []; window.jugadores.forEach(j => rows.push([j.nombre, j.apodo || '-', j.posicion || '-', `Bs ${j.tarifa}`]));
+            doc.text("Plantel Oficial", 40, 40);
+            doc.autoTable({ startY: 60, head: [['Nombre', 'Apodo', 'Posición', 'Tarifa']], body: rows });
+            doc.save("Plantel.pdf");
+        }
+        window.descargarReporteJugadoresJPG = function() { window.descargarReporteJugadoresPDF(); }
+        window.descargarReporteCarpetaPDF = function() {
+            const c = window.carpetasCaja.find(x => x.id_db == window.carpetaActivaId); if(!c) return;
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'pt', 'a4');
+            let rows = []; (c.aportes || []).forEach(a => rows.push([a.fecha, a.tipo, a.dirigenteNombre, a.observacion || '-', `Bs ${a.monto}`]));
+            doc.text(`Reporte de Caja: ${c.nombre}`, 40, 40);
+            doc.autoTable({ startY: 60, head: [['Fecha', 'Tipo', 'Responsable', 'Detalle', 'Monto']], body: rows });
+            doc.save(`Caja_${c.nombre}.pdf`);
+        }
+        window.descargarReporteCarpetaJPG = function() { window.descargarReporteCarpetaPDF(); }
+        window.descargarReporteAsistenciaPDF = function() { window.descargarReportePartidosPDF(); }
+        window.descargarReporteAsistenciaJPG = function() { window.descargarReportePartidosPDF(); }
+
         // ==========================================
         // GESTIÓN DE CAJAS
         // ==========================================
@@ -851,26 +861,6 @@
             } else { lista.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Sin movimientos.</p>'; }
             document.getElementById('total-carpeta-detalle').innerText = `Bs ${t.toFixed(2)}`;
         }
-
-        // ==========================================
-        // REPORTES PDF / JPG
-        // ==========================================
-        window.descargarUnPartidoPDF = function(id_db) {
-            const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
-            const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'pt', 'a4');
-            doc.setFontSize(22); doc.setTextColor(14, 165, 233); doc.text("Club Racing Loa", 40, 50);
-            doc.setFontSize(16); doc.setTextColor(31, 41, 55); doc.text(`Resumen vs ${p.rival}`, 40, 75);
-            doc.save(`Resumen_${p.rival}.pdf`);
-        }
-        window.descargarUnPartidoJPG = function(id_db) { alert("Reporte JPG generado"); }
-        window.descargarReportePartidosPDF = function() { alert("PDF Historial"); }
-        window.descargarReportePartidosJPG = function() { alert("JPG Historial"); }
-        window.descargarReporteJugadoresPDF = function() { alert("PDF Plantel"); }
-        window.descargarReporteJugadoresJPG = function() { alert("JPG Plantel"); }
-        window.descargarReporteCarpetaPDF = function() { alert("PDF Caja"); }
-        window.descargarReporteCarpetaJPG = function() { alert("JPG Caja"); }
-        window.descargarReporteAsistenciaPDF = function() { alert("PDF Pagos"); }
-        window.descargarReporteAsistenciaJPG = function() { alert("JPG Pagos"); }
     </script>
 </body>
 </html>
