@@ -610,7 +610,7 @@
         }
 
         // ==========================================
-        // PARTIDOS Y REPORTES PROFESIONALES ORDENADOS
+        // PARTIDOS Y REPORTES INDEPENDIENTES Y PROFESIONALES
         // ==========================================
         window.guardarPartido = function() {
             const id = document.getElementById('mp-id').value;
@@ -730,13 +730,11 @@
             container.innerHTML += `<div class="flex gap-2 items-center mb-1" id="gol-${filaId}"><select class="sel-jugador flex-1 border p-1 rounded text-xs">${options}</select><input type="number" class="inp-goles w-16 border p-1 rounded text-xs text-center" value="${golesVal}" min="1"><button type="button" onclick="document.getElementById('gol-${filaId}').remove()" class="text-red-400 p-1"><i class="fa-solid fa-times"></i></button></div>`;
         }
 
-        // --- PDF CARTA CON MÁRGENES DE 2 CM, LOGO Y TABLAS ORDENADAS ---
-        window.descargarUnPartidoPDF = function(id_db) {
-            const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
+        // --- REPORTE INDEPENDIENTE: PLANTEL ---
+        window.descargarReporteJugadoresPDF = function() {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'letter'); // Tamaño Carta
-            
-            const margen = 20; // 2 cm de margen
+            const doc = new jsPDF('p', 'mm', 'letter');
+            const margen = 20;
             let currentY = margen;
 
             doc.setFont("helvetica", "bold");
@@ -751,153 +749,31 @@
             currentY += 12;
             doc.setFontSize(13);
             doc.setTextColor(31, 41, 55);
-            doc.text(`Resumen de Encuentro: vs ${p.rival.toUpperCase()}`, margen, currentY);
-            
-            currentY += 6;
-            doc.setFontSize(10);
-            doc.text(`Fecha: ${p.fecha}  |  Resultado: Racing ${p.gf} - ${p.gc} ${p.rival}`, margen, currentY);
+            doc.text("Planilla Oficial del Plantel", margen, currentY);
+            currentY += 8;
 
-            let gs = p.goleadores && p.goleadores.length > 0 ? p.goleadores.map(g => `${g.nombre} (${g.goles})`).join(', ') : 'Ninguno';
-            currentY += 6;
-            doc.text(`Goleadores: ${gs}`, margen, currentY);
-            if(p.obs) { currentY += 6; doc.text(`Observaciones: ${p.obs}`, margen, currentY); }
-
-            currentY += 10;
-
-            // Procesar y ordenar asistencias: 1) QR, 2) Efectivo, 3) No cobra
-            let listaAsistentes = [];
-            (p.asistencia || []).forEach(a => {
-                if(a.asistio) {
-                    let j = window.jugadores.find(x => x.id_db === a.id_db);
-                    if(j) {
-                        let estadoTxt = '';
-                        let ordenPrioridad = 3;
-                        if(j.tarifa === 0) {
-                            estadoTxt = 'Asistió (No cobra)';
-                            ordenPrioridad = 3;
-                        } else if(a.pagado) {
-                            estadoTxt = `Pagado (${a.metodo === 'qr' ? 'QR' : 'Efectivo'})`;
-                            ordenPrioridad = a.metodo === 'qr' ? 1 : 2;
-                        } else {
-                            estadoTxt = 'Pendiente';
-                            ordenPrioridad = 4;
-                        }
-
-                        let cNombre = '-';
-                        if(a.pagado && a.carpetaFuenteId) {
-                            let c = window.carpetasCaja.find(x => x.id_db === a.carpetaFuenteId);
-                            if(c) cNombre = c.nombre;
-                        }
-
-                        listaAsistentes.push({
-                            prioridad: ordenPrioridad,
-                            nombre: j.nombre,
-                            estado: estadoTxt,
-                            caja: cNombre,
-                            tarifa: j.tarifa
-                        });
-                    }
-                }
+            let filasJugadores = [];
+            window.jugadores.sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(j => {
+                filasJugadores.push([j.nombre, j.apodo || '-', j.posicion || '-', j.observacion || '-', `Bs ${j.tarifa}`]);
             });
 
-            // Ordenar por prioridad (QR -> Efectivo -> No cobra)
-            listaAsistentes.sort((a, b) => a.prioridad - b.prioridad);
+            doc.autoTable({
+                startY: currentY,
+                margin: { left: margen, right: margen },
+                head: [['Nombre Completo', 'Apodo', 'Posición', 'Observación', 'Tarifa']],
+                body: filasJugadores,
+                theme: 'striped',
+                headStyles: { fillColor: [14, 165, 233] },
+                styles: { fontSize: 8.5, cellPadding: 4 }
+            });
 
-            let filasAsistencia = listaAsistentes.map(item => [item.nombre, item.estado, item.caja, `Bs ${item.tarifa}`]);
-
-            if(filasAsistencia.length > 0) {
-                doc.setFontSize(11);
-                doc.setTextColor(14, 165, 233);
-                doc.text("1. Detalle de Asistencia y Pagos a Jugadores", margen, currentY);
-                currentY += 4;
-
-                doc.autoTable({
-                    startY: currentY,
-                    margin: { left: margen, right: margen },
-                    head: [['Jugador', 'Estado / Método', 'Descontado de la Caja', 'Tarifa']],
-                    body: filasAsistencia,
-                    theme: 'striped',
-                    headStyles: { fillColor: [14, 165, 233] },
-                    styles: { fontSize: 8.5, cellPadding: 4 }
-                });
-                currentY = doc.lastAutoTable.finalY + 12;
-            }
-
-            // Resumen de Caja Vinculada
-            if(p.carpetaId) {
-                let caja = window.carpetasCaja.find(c => c.id_db === p.carpetaId);
-                if(caja) {
-                    let totalCaja = caja.aportes ? caja.aportes.reduce((s, a) => a.tipo === 'egreso' ? s - a.monto : (a.tipo === 'pendiente' ? s : s + a.monto), 0) : 0;
-                    doc.setFontSize(11);
-                    doc.setTextColor(16, 185, 129);
-                    doc.text(`2. Resumen General de Caja Vinculada: ${caja.nombre} (Saldo Actual: Bs ${totalCaja})`, margen, currentY);
-                    currentY += 4;
-                    
-                    let filasCaja = [];
-                    (caja.aportes || []).forEach(ap => {
-                        filasCaja.push([ap.fecha, ap.dirigenteNombre, ap.tipo.toUpperCase(), ap.observacion || '-', `Bs ${ap.monto}`]);
-                    });
-
-                    if(filasCaja.length > 0) {
-                        doc.autoTable({
-                            startY: currentY,
-                            margin: { left: margen, right: margen },
-                            head: [['Fecha', 'Responsable', 'Tipo', 'Detalle General', 'Monto']],
-                            body: filasCaja,
-                            theme: 'striped',
-                            headStyles: { fillColor: [16, 185, 129] },
-                            styles: { fontSize: 8.5, cellPadding: 4 }
-                        });
-                    }
-                }
-            }
-
-            doc.save(`Resumen_Partido_${p.rival}.pdf`);
+            doc.save("Planilla_Plantel_Racing.pdf");
         }
 
-        // --- JPG VERTICAL EN PROPORCIÓN 9:16 (Optimizado para WhatsApp) ---
-        window.descargarUnPartidoJPG = function(id_db) {
-            const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
-            
-            let listaAsistentes = [];
-            (p.asistencia || []).forEach(a => {
-                if(a.asistio) {
-                    let j = window.jugadores.find(x => x.id_db === a.id_db);
-                    if(j) {
-                        let estadoTxt = '';
-                        let ordenPrioridad = 3;
-                        if(j.tarifa === 0) {
-                            estadoTxt = 'Asistió (No cobra)';
-                            ordenPrioridad = 3;
-                        } else if(a.pagado) {
-                            estadoTxt = `Pagado (${a.metodo === 'qr' ? 'QR' : 'Efectivo'})`;
-                            ordenPrioridad = a.metodo === 'qr' ? 1 : 2;
-                        } else {
-                            estadoTxt = 'Pendiente';
-                            ordenPrioridad = 4;
-                        }
-
-                        let cNombre = '-';
-                        if(a.pagado && a.carpetaFuenteId) {
-                            let c = window.carpetasCaja.find(x => x.id_db === a.carpetaFuenteId);
-                            if(c) cNombre = c.nombre;
-                        }
-
-                        listaAsistentes.push({
-                            prioridad: ordenPrioridad,
-                            nombre: j.nombre,
-                            estado: estadoTxt,
-                            caja: cNombre,
-                            tarifa: j.tarifa
-                        });
-                    }
-                }
-            });
-            listaAsistentes.sort((a, b) => a.prioridad - b.prioridad);
-
+        window.descargarReporteJugadoresJPG = function() {
             let filas = '';
-            listaAsistentes.forEach(item => {
-                filas += `<tr><td style="padding:12px; border-bottom:1px solid #eee;">${item.nombre}</td><td style="padding:12px; border-bottom:1px solid #eee;">${item.estado}</td><td style="padding:12px; border-bottom:1px solid #eee;">${item.caja}</td><td style="padding:12px; border-bottom:1px solid #eee; text-align:right; font-weight:bold;">Bs ${item.tarifa}</td></tr>`;
+            window.jugadores.sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(j => {
+                filas += `<tr><td style="padding:12px; border-bottom:1px solid #eee;">${j.nombre}</td><td style="padding:12px; border-bottom:1px solid #eee;">${j.apodo||'-'}</td><td style="padding:12px; border-bottom:1px solid #eee;">${j.posicion||'-'}</td><td style="padding:12px; border-bottom:1px solid #eee; text-align:right; font-weight:bold;">Bs ${j.tarifa}</td></tr>`;
             });
 
             let d = document.createElement('div');
@@ -908,16 +784,11 @@
                         <img src="logoracingloa.png" style="width:120px; height:120px; object-fit:contain; margin-right:30px;" crossorigin="anonymous" />
                         <div>
                             <h1 style="color:#0ea5e9; margin:0; font-size:42px; font-weight:900; text-transform:uppercase;">Club Racing Loa</h1>
-                            <p style="margin:5px 0 0 0; color:#6b7280; font-size:22px;">Resumen Oficial de Partido</p>
+                            <p style="margin:5px 0 0 0; color:#6b7280; font-size:22px;">Planilla Oficial del Plantel</p>
                         </div>
                     </div>
-                    <div style="text-align:center; background:#0ea5e9; color:white; padding:40px; border-radius:20px; margin-bottom:40px;">
-                        <h2 style="margin:0; font-size:36px;">RACING ${p.gf} - ${p.gc} ${p.rival.toUpperCase()}</h2>
-                        <p style="margin:10px 0 0 0; font-size:20px; opacity:0.9;">Fecha: ${p.fecha}</p>
-                    </div>
-                    <h3 style="font-size:26px; color:#1f2937; margin-bottom:20px; border-left:6px solid #0ea5e9; padding-left:15px;">Asistencia y Descuentos a Jugadores</h3>
-                    <table style="width:100%; border-collapse:collapse; font-size:20px; background:white; margin-bottom:40px;">
-                        <tr><th style="background:#f1f5f9; padding:15px; text-align:left;">Jugador</th><th style="background:#f1f5f9; padding:15px; text-align:left;">Estado</th><th style="background:#f1f5f9; padding:15px; text-align:left;">Caja</th><th style="background:#f1f5f9; padding:15px; text-align:right;">Tarifa</th></tr>
+                    <table style="width:100%; border-collapse:collapse; font-size:20px; background:white;">
+                        <tr><th style="background:#f1f5f9; padding:15px; text-align:left;">Nombre Completo</th><th style="background:#f1f5f9; padding:15px; text-align:left;">Apodo</th><th style="background:#f1f5f9; padding:15px; text-align:left;">Posición</th><th style="background:#f1f5f9; padding:15px; text-align:right;">Tarifa</th></tr>
                         ${filas}
                     </table>
                 </div>`;
@@ -925,21 +796,152 @@
 
             html2canvas(d, { scale: 2, useCORS: true, windowWidth: 1080 }).then(canvas => {
                 let l = document.createElement('a');
-                l.download = `Resumen_${p.rival}.jpg`;
+                l.download = `Plantel_Racing.jpg`;
                 l.href = canvas.toDataURL('image/jpeg', 0.95);
                 l.click();
                 d.remove();
             });
         }
 
-        window.descargarReportePartidosPDF = function() { window.descargarUnPartidoPDF(window.partidos[0]?.id_db); }
-        window.descargarReportePartidosJPG = function() { window.descargarUnPartidoJPG(window.partidos[0]?.id_db); }
-        window.descargarReporteJugadoresPDF = function() { window.descargarUnPartidoPDF(window.partidos[0]?.id_db); }
-        window.descargarReporteJugadoresJPG = function() { window.descargarUnPartidoJPG(window.partidos[0]?.id_db); }
-        window.descargarReporteCarpetaPDF = function() { window.descargarUnPartidoPDF(window.partidos[0]?.id_db); }
-        window.descargarReporteCarpetaJPG = function() { window.descargarUnPartidoJPG(window.partidos[0]?.id_db); }
-        window.descargarReporteAsistenciaPDF = function() { window.descargarUnPartidoPDF(document.getElementById('sel-partido-pagos').value); }
-        window.descargarReporteAsistenciaJPG = function() { window.descargarUnPartidoJPG(document.getElementById('sel-partido-pagos').value); }
+        // --- REPORTE INDEPENDIENTE: CAJA ---
+        window.descargarReporteCarpetaPDF = function() {
+            const c = window.carpetasCaja.find(x => x.id_db == window.carpetaActivaId); if(!c) return alert("Selecciona una carpeta de caja primero.");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'letter');
+            const margen = 20;
+            let currentY = margen;
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.setTextColor(14, 165, 233);
+            doc.text("CLUB RACING LOA", margen, currentY + 4);
+            
+            doc.setFontSize(9);
+            doc.setTextColor(107, 114, 128);
+            doc.text(`Emisión: ${new Date().toLocaleDateString()}`, 215.9 - margen, currentY + 4, { align: 'right' });
+            
+            currentY += 12;
+            doc.setFontSize(13);
+            doc.setTextColor(31, 41, 55);
+            doc.text(`Reporte de Caja: ${c.nombre}`, margen, currentY);
+            currentY += 8;
+
+            let totalCaja = c.aportes ? c.aportes.reduce((s, a) => a.tipo === 'egreso' ? s - a.monto : (a.tipo === 'pendiente' ? s : s + a.monto), 0) : 0;
+            doc.setFontSize(10);
+            doc.text(`Saldo Total Actual: Bs ${totalCaja.toFixed(2)}`, margen, currentY);
+            currentY += 6;
+
+            let filasAportes = [];
+            (c.aportes || []).forEach(ap => {
+                filasAportes.push([ap.fecha, ap.dirigenteNombre, ap.tipo.toUpperCase(), ap.observacion || '-', `Bs ${ap.monto}`]);
+            });
+
+            if(filasAportes.length > 0) {
+                doc.autoTable({
+                    startY: currentY,
+                    margin: { left: margen, right: margen },
+                    head: [['Fecha', 'Responsable', 'Tipo', 'Observación / Detalle', 'Monto']],
+                    body: filasAportes,
+                    theme: 'striped',
+                    headStyles: { fillColor: [16, 185, 129] },
+                    styles: { fontSize: 8.5, cellPadding: 4 }
+                });
+            }
+
+            doc.save(`Caja_${c.nombre}.pdf`);
+        }
+
+        window.descargarReporteCarpetaJPG = function() {
+            const c = window.carpetasCaja.find(x => x.id_db == window.carpetaActivaId); if(!c) return alert("Selecciona una carpeta de caja primero.");
+            let filas = '';
+            let totalCaja = 0;
+            (c.aportes || []).forEach(ap => {
+                let ei = ap.tipo !== 'egreso' && ap.tipo !== 'pendiente';
+                if(ei) totalCaja += ap.monto; if(ap.tipo === 'egreso') totalCaja -= ap.monto;
+                filas += `<tr><td style="padding:12px; border-bottom:1px solid #eee;">${ap.fecha}</td><td style="padding:12px; border-bottom:1px solid #eee;">${ap.dirigenteNombre}</td><td style="padding:12px; border-bottom:1px solid #eee;">${ap.tipo.toUpperCase()}</td><td style="padding:12px; border-bottom:1px solid #eee; text-align:right; font-weight:bold;">Bs ${ap.monto}</td></tr>`;
+            });
+
+            let d = document.createElement('div');
+            d.style.cssText = "position:absolute; left:-9999px; width:1080px; min-height:1920px; background:#f8fafc; padding:60px; font-family:sans-serif; box-sizing:border-box;";
+            d.innerHTML = `
+                <div style="background:white; padding:50px; border-radius:30px; box-shadow:0 10px 25px rgba(0,0,0,0.05);">
+                    <div style="display:flex; align-items:center; border-bottom:4px solid #10b981; padding-bottom:30px; margin-bottom:40px;">
+                        <img src="logoracingloa.png" style="width:120px; height:120px; object-fit:contain; margin-right:30px;" crossorigin="anonymous" />
+                        <div>
+                            <h1 style="color:#10b981; margin:0; font-size:42px; font-weight:900; text-transform:uppercase;">Club Racing Loa</h1>
+                            <p style="margin:5px 0 0 0; color:#6b7280; font-size:22px;">Reporte de Caja: ${c.nombre}</p>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:30px; font-size:22px; font-weight:bold; color:#1f2937;">Saldo Actual: Bs ${totalCaja.toFixed(2)}</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:20px; background:white;">
+                        <tr><th style="background:#f1f5f9; padding:15px; text-align:left;">Fecha</th><th style="background:#f1f5f9; padding:15px; text-align:left;">Responsable</th><th style="background:#f1f5f9; padding:15px; text-align:left;">Tipo</th><th style="background:#f1f5f9; padding:15px; text-align:right;">Monto</th></tr>
+                        ${filas}
+                    </table>
+                </div>`;
+            document.body.appendChild(d);
+
+            html2canvas(d, { scale: 2, useCORS: true, windowWidth: 1080 }).then(canvas => {
+                let l = document.createElement('a');
+                l.download = `Caja_${c.nombre}.jpg`;
+                l.href = canvas.toDataURL('image/jpeg', 0.95);
+                l.click();
+                d.remove();
+            });
+        }
+
+        // --- REPORTE INDEPENDIENTE: PARTIDOS GENERALES ---
+        window.descargarReportePartidosPDF = function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'letter');
+            const margen = 20;
+            let currentY = margen;
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.setTextColor(14, 165, 233);
+            doc.text("CLUB RACING LOA", margen, currentY + 4);
+            
+            doc.setFontSize(9);
+            doc.setTextColor(107, 114, 128);
+            doc.text(`Emisión: ${new Date().toLocaleDateString()}`, 215.9 - margen, currentY + 4, { align: 'right' });
+            
+            currentY += 12;
+            doc.setFontSize(13);
+            doc.setTextColor(31, 41, 55);
+            doc.text("Historial General de Partidos", margen, currentY);
+            currentY += 8;
+
+            let filasPartidos = [];
+            window.partidos.forEach(p => {
+                filasPartidos.push([p.fecha, `vs ${p.rival}`, `${p.gf} - ${p.gc}`, `Bs ${p.totalPagado || 0}`]);
+            });
+
+            if(filasPartidos.length > 0) {
+                doc.autoTable({
+                    startY: currentY,
+                    margin: { left: margen, right: margen },
+                    head: [['Fecha', 'Rival', 'Resultado', 'Gasto Plantel']],
+                    body: filasPartidos,
+                    theme: 'striped',
+                    headStyles: { fillColor: [14, 165, 233] },
+                    styles: { fontSize: 8.5, cellPadding: 4 }
+                });
+            }
+
+            doc.save("Historial_Partidos_Racing.pdf");
+        }
+
+        window.descargarReportePartidosJPG = function() { window.descargarReportePartidosPDF(); }
+        window.descargarReporteAsistenciaPDF = function() { 
+            let id = document.getElementById('sel-partido-pagos').value;
+            if(id) window.descargarUnPartidoPDF(id);
+            else alert("Selecciona un partido en la pestaña Pagos primero.");
+        }
+        window.descargarReporteAsistenciaJPG = function() { 
+            let id = document.getElementById('sel-partido-pagos').value;
+            if(id) window.descargarUnPartidoJPG(id);
+            else alert("Selecciona un partido en la pestaña Pagos primero.");
+        }
 
         // ==========================================
         // GESTIÓN DE CAJAS
