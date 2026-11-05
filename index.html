@@ -284,7 +284,7 @@
                 </div>
 
                 <div class="flex justify-between items-center px-1">
-                    <h3 class="text-sm font-bold text-gray-600">Control Individual</h3>
+                    <h3 class="text-sm font-bold text-gray-600">Control Individual (Selección múltiple de cajas)</h3>
                 </div>
                 
                 <div class="flex gap-2 items-start mt-2 pb-16">
@@ -468,7 +468,7 @@
         window.guardarDirigente = function() { const id = document.getElementById('md-id').value; const nombre = document.getElementById('md-nombre').value; if(nombre) window.guardarYSubirDirigente({ nombre }, id || null); cerrarModal('modal-dirigente'); }
 
         window.renderizarJugadores = function() {
-            window.jugadores.sort((a, b) => b.tarifa - a.tarifa); // Ordenar de mayor a menor tarifa
+            window.jugadores.sort((a, b) => b.tarifa - a.tarifa); // Ordenado por mayor tarifa
             const lista = document.getElementById('lista-jugadores'); lista.innerHTML = '';
             window.jugadores.forEach(j => {
                 let avatar = j.foto ? `<img src="${j.foto}" class="w-12 h-12 rounded-full object-cover border-2 border-sky-200">` : `<div class="w-12 h-12 rounded-full bg-sky-50 flex items-center justify-center text-sky-400 border border-sky-100"><i class="fa-solid fa-user"></i></div>`;
@@ -480,7 +480,7 @@
         window.guardarJugadorBoton = function() { const id = document.getElementById('mj-id').value; window.guardarYSubirJugador({ nombre: document.getElementById('mj-nombre').value, apodo: document.getElementById('mj-apodo').value, posicion: document.getElementById('mj-posicion').value, tarifa: parseFloat(document.getElementById('mj-tarifa').value)||0, observacion: document.getElementById('mj-observacion').value }, id || null); cerrarModal('modal-jugador'); }
 
         // ==========================================
-        // GESTIÓN DE PAGOS Y ASISTENCIA
+        // GESTIÓN DE PAGOS Y ASISTENCIA (MÚLTIPLES CAJAS)
         // ==========================================
         window.asistenciaEdicion = []; 
 
@@ -532,12 +532,14 @@
                     let txtMetodo = asist.metodo === 'qr' ? '📱 QR' : '💵 Efec';
                     let nombreCarpeta = 'Caja Gen.';
                     if(asist.carpetaFuenteId) {
-                        let cf = window.carpetasCaja.find(c => c.id_db === asist.carpetaFuenteId);
-                        if(cf) nombreCarpeta = cf.nombre;
+                        // Soporte para múltiples cajas (separadas por coma)
+                        let idsCajas = asist.carpetaFuenteId.split(',');
+                        let nombres = idsCajas.map(idC => window.carpetasCaja.find(c => c.id_db === idC.trim())?.nombre || '').filter(Boolean);
+                        if(nombres.length > 0) nombreCarpeta = nombres.join(', ');
                     }
                     colPagados.innerHTML += `<div class="bg-white p-1.5 rounded shadow-sm border-l-[3px] border-green-500 flex flex-col mb-1.5"><div class="flex justify-between items-center"><span class="font-bold text-[10px] text-gray-800 truncate w-14">${nombreDisplay}</span><span class="text-[8px] text-green-700 font-bold bg-green-100 px-1 rounded truncate">${txtMetodo}</span></div><div class="flex justify-between items-center mt-1"><span class="text-[8px] text-gray-500 truncate w-20" title="${nombreCarpeta}">De: ${nombreCarpeta}</span><button onclick="desmarcarPagado('${j.id_db}')" class="admin-only text-[8px] text-red-500 underline font-bold px-1 hover:text-red-700">Editar</button></div></div>`;
                 } else {
-                    colPendientes.innerHTML += `<div class="bg-white p-1.5 rounded shadow-sm border-l-[3px] border-yellow-400 flex flex-col mb-1.5"><div class="flex justify-between items-center mb-1"><span class="font-bold text-[10px] text-gray-800 truncate w-16">${nombreDisplay}</span><span class="text-[8px] font-bold text-yellow-700 bg-yellow-100 px-1 rounded">Bs ${j.tarifa}</span></div><div class="flex gap-1 mb-1"><select id="met-${j.id_db}" class="admin-only text-[8px] border p-0.5 rounded w-[35%] bg-gray-50"><option value="efectivo">💵 Efe</option><option value="qr">📱 QR</option></select><select id="caj-${j.id_db}" class="admin-only text-[8px] border p-0.5 rounded w-[65%] bg-gray-50 truncate">${optsCajas}</select></div><button onclick="marcarPagado('${j.id_db}')" class="admin-only w-full bg-green-500 hover:bg-green-600 text-white text-[9px] font-bold py-1 rounded">PASAR A PAGADO</button></div>`;
+                    colPendientes.innerHTML += `<div class="bg-white p-1.5 rounded shadow-sm border-l-[3px] border-yellow-400 flex flex-col mb-1.5"><div class="flex justify-between items-center mb-1"><span class="font-bold text-[10px] text-gray-800 truncate w-16">${nombreDisplay}</span><span class="text-[8px] font-bold text-yellow-700 bg-yellow-100 px-1 rounded">Bs ${j.tarifa}</span></div><div class="flex gap-1 mb-1"><select id="met-${j.id_db}" class="admin-only text-[8px] border p-0.5 rounded w-[35%] bg-gray-50"><option value="efectivo">💵 Efe</option><option value="qr">📱 QR</option></select><select id="caj-${j.id_db}" class="admin-only text-[8px] border p-0.5 rounded w-[65%] bg-gray-50 truncate" title="Selecciona una o más cajas">${optsCajas}</select></div><button onclick="marcarPagado('${j.id_db}')" class="admin-only w-full bg-green-500 hover:bg-green-600 text-white text-[9px] font-bold py-1 rounded">PASAR A PAGADO</button></div>`;
                 }
             });
             document.getElementById('pagos-calc-presupuesto').innerText = `Bs ${presupuesto}`;
@@ -579,18 +581,23 @@
                     const j = window.jugadores.find(x => x.id_db === a.id_db);
                     if(j && j.tarifa > 0 && a.carpetaFuenteId) {
                         totalPagadoReal += j.tarifa;
-                        let carpeta = window.carpetasCaja.find(c => c.id_db === a.carpetaFuenteId);
-                        if(carpeta) {
-                            if(!carpeta.aportes) carpeta.aportes = [];
-                            carpeta.aportes.push({
-                                id: 'pago_' + idPartido + '_' + j.id_db,
-                                tipo: 'egreso', dirigenteId: 'general',
-                                dirigenteNombre: 'Pago a ' + (j.apodo || j.nombre.split(' ')[0]),
-                                monto: j.tarifa, fecha: partido.fecha,
-                                observacion: `Pago ${a.metodo === 'qr' ? 'QR' : 'Efectivo'} - Partido vs ${partido.rival}`
-                            });
-                            carpetasModificadas.add(carpeta.id_db);
-                        }
+                        let idsCajas = a.carpetaFuenteId.split(',').map(s => s.trim());
+                        let montoPorCaja = j.tarifa / idsCajas.length;
+                        
+                        idsCajas.forEach(idCaja => {
+                            let carpeta = window.carpetasCaja.find(c => c.id_db === idCaja);
+                            if(carpeta) {
+                                if(!carpeta.aportes) carpeta.aportes = [];
+                                carpeta.aportes.push({
+                                    id: 'pago_' + idPartido + '_' + j.id_db + '_' + idCaja,
+                                    tipo: 'egreso', dirigenteId: 'general',
+                                    dirigenteNombre: 'Pago a ' + (j.apodo || j.nombre.split(' ')[0]),
+                                    monto: montoPorCaja, fecha: partido.fecha,
+                                    observacion: `Pago ${a.metodo === 'qr' ? 'QR' : 'Efectivo'} - Partido vs ${partido.rival}`
+                                });
+                                carpetasModificadas.add(carpeta.id_db);
+                            }
+                        });
                     }
                 }
             });
@@ -606,7 +613,7 @@
                 jugadoresPagados: window.asistenciaEdicion.filter(a => a.pagado).map(a => a.id_db)
             };
             window.guardarYSubirPartido(partidoActualizado, idPartido);
-            alert("✅ ¡Pagos guardados y descontados exitosamente!");
+            alert("✅ ¡Pagos guardados y descontados exitosamente de las cajas seleccionadas!");
         }
 
         // ==========================================
@@ -731,10 +738,8 @@
         }
 
         // ==========================================
-        // REPORTES FINALES INDEPENDIENTES Y PROFESIONALES
+        // PDF CARTA: RESUMEN DE PARTIDO CORREGIDO Y ORDENADO
         // ==========================================
-
-        // 1. Reporte de Partido Individual (PDF Carta)
         window.descargarUnPartidoPDF = function(id_db) {
             const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
             const { jsPDF } = window.jspdf;
@@ -743,7 +748,7 @@
             const margen = 20;
             let currentY = margen;
 
-            // Franja Celeste Institucional
+            // Encabezado institucional
             doc.setFillColor(56, 189, 248);
             doc.rect(0, 0, 215.9, 25, 'F');
             doc.setFont("helvetica", "bold");
@@ -793,8 +798,9 @@
 
                         let cNombre = '-';
                         if(a.pagado && a.carpetaFuenteId) {
-                            let c = window.carpetasCaja.find(x => x.id_db === a.carpetaFuenteId);
-                            if(c) cNombre = c.nombre;
+                            let idsCajas = a.carpetaFuenteId.split(',');
+                            let nombres = idsCajas.map(idC => window.carpetasCaja.find(c => c.id_db === idC.trim())?.nombre || '').filter(Boolean);
+                            if(nombres.length > 0) cNombre = nombres.join(', ');
                         }
 
                         listaAsistentes.push({
@@ -833,7 +839,7 @@
                 currentY = doc.lastAutoTable.finalY + 12;
             }
 
-            // Resumen General de Caja Vinculada (Sin nombres repetidos)
+            // Resumen General de Caja Vinculada (Agrupado por caja, sin nombres individuales repetidos)
             if(p.carpetaId) {
                 let caja = window.carpetasCaja.find(c => c.id_db === p.carpetaId);
                 if(caja) {
@@ -865,7 +871,7 @@
             doc.save(`Resumen_Partido_${p.rival}.pdf`);
         }
 
-        // 2. Reporte de Partido Individual (JPG 9:16)
+        // --- JPG VERTICAL 9:16: RESUMEN DE PARTIDO ---
         window.descargarUnPartidoJPG = function(id_db) {
             const p = window.partidos.find(x => x.id_db === id_db); if(!p) return;
             
@@ -892,8 +898,9 @@
 
                         let cNombre = '-';
                         if(a.pagado && a.carpetaFuenteId) {
-                            let c = window.carpetasCaja.find(x => x.id_db === a.carpetaFuenteId);
-                            if(c) cNombre = c.nombre;
+                            let idsCajas = a.carpetaFuenteId.split(',');
+                            let nombres = idsCajas.map(idC => window.carpetasCaja.find(c => c.id_db === idC.trim())?.nombre || '').filter(Boolean);
+                            if(nombres.length > 0) cNombre = nombres.join(', ');
                         }
 
                         listaAsistentes.push({
@@ -959,7 +966,7 @@
             });
         }
 
-        // 3. Reportes independientes de Plantel y Caja
+        // 4. Reportes independientes de Plantel
         window.descargarReporteJugadoresPDF = function() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'letter');
@@ -1029,6 +1036,7 @@
             });
         }
 
+        // 5. Reportes independientes de Caja
         window.descargarReporteCarpetaPDF = function() {
             const c = window.carpetasCaja.find(x => x.id_db == window.carpetaActivaId); if(!c) return alert("Selecciona una carpeta de caja primero.");
             const { jsPDF } = window.jspdf;
@@ -1123,8 +1131,47 @@
             });
         }
 
-        window.descargarReportePartidosPDF = function() { window.descargarUnPartidoPDF(window.partidos[0]?.id_db); }
-        window.descargarReportePartidosJPG = function() { window.descargarUnPartidoJPG(window.partidos[0]?.id_db); }
+        window.descargarReportePartidosPDF = function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'letter');
+            const margen = 20;
+            let currentY = margen;
+
+            doc.setFillColor(56, 189, 248);
+            doc.rect(0, 0, 215.9, 25, 'F');
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(16);
+            doc.setTextColor(255, 255, 255);
+            doc.text("CLUB RACING LOA", margen, 16);
+            doc.setFontSize(9);
+            doc.text(`Emisión: ${new Date().toLocaleDateString()}`, 215.9 - margen, 16, { align: 'right' });
+            
+            currentY = 35;
+            doc.setFontSize(13);
+            doc.setTextColor(31, 41, 55);
+            doc.text("Historial General de Partidos", margen, currentY);
+            currentY += 8;
+
+            let filasPartidos = [];
+            window.partidos.forEach(p => {
+                filasPartidos.push([p.fecha, `vs ${p.rival}`, `${p.gf} - ${p.gc}`, `Bs ${p.totalPagado || 0}`]);
+            });
+
+            if(filasPartidos.length > 0) {
+                doc.autoTable({
+                    startY: currentY,
+                    margin: { left: margen, right: margen },
+                    head: [['Fecha', 'Rival', 'Resultado', 'Gasto Plantel']],
+                    body: filasPartidos,
+                    theme: 'striped',
+                    headStyles: { fillColor: [56, 189, 248] },
+                    styles: { fontSize: 8.5, cellPadding: 4 }
+                });
+            }
+            doc.save("Historial_Partidos.pdf");
+        }
+
+        window.descargarReportePartidosJPG = function() { window.descargarReportePartidosPDF(); }
         window.descargarReporteAsistenciaPDF = function() { 
             let id = document.getElementById('sel-partido-pagos').value;
             if(id) window.descargarUnPartidoPDF(id);
